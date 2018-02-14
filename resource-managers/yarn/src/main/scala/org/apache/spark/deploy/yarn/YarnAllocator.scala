@@ -137,8 +137,12 @@ private[yarn] class YarnAllocator(
     math.max((MEMORY_OVERHEAD_FACTOR * executorMemory).toInt, MEMORY_OVERHEAD_MIN)).toInt
   // Number of cores per executor.
   protected val executorCores = sparkConf.get(EXECUTOR_CORES)
+
+  private val executorResourceTypes: collection.immutable.Map[String, String] =
+    sparkConf.getAllWithPrefix(config.YARN_EXECUTOR_RESOURCE_TYPES_PREFIX).toMap
+
   // Resource capability requested for each executors
-  private[yarn] val resource = Resource.newInstance(executorMemory + memoryOverhead, executorCores)
+  private[yarn] val resource: Resource = createResourceCapability
 
   private val launcherPool = ThreadUtils.newDaemonCachedThreadPool(
     "ContainerLauncher", sparkConf.get(CONTAINER_LAUNCH_MAX_THREADS))
@@ -158,6 +162,14 @@ private[yarn] class YarnAllocator(
   // A container placement strategy based on pending tasks' locality preference
   private[yarn] val containerPlacementStrategy =
     new LocalityPreferredContainerPlacementStrategy(sparkConf, conf, resource, resolver)
+
+  def createResourceCapability: Resource = {
+    val defaultResource = Resource.newInstance(executorMemory + memoryOverhead, executorCores)
+    val resource = ResourceTypeHelper
+      .setResourceInfoFromResourceTypes(executorResourceTypes, defaultResource)
+    logDebug("Created resource capability: %s".format(resource.toString))
+    resource
+  }
 
   /**
    * Use a different clock for YarnAllocator. This is mainly used for testing.
@@ -220,7 +232,7 @@ private[yarn] class YarnAllocator(
       logInfo(s"Driver requested a total number of $requestedTotal executor(s).")
       targetNumExecutors = requestedTotal
 
-      // Update blacklist infomation to YARN ResouceManager for this application,
+      // Update blacklist information to YARN ResourceManager for this application,
       // in order to avoid allocating new Containers on the problematic nodes.
       val blacklistAdditions = nodeBlacklist -- currentNodeBlacklist
       val blacklistRemovals = currentNodeBlacklist -- nodeBlacklist

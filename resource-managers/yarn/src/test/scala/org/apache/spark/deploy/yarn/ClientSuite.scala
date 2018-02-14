@@ -22,6 +22,8 @@ import java.net.URI
 import java.util.Properties
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.{ListBuffer, HashMap => MutableHashMap}
+import org.apache.commons.lang3.SerializationUtils
 import scala.collection.mutable.{HashMap => MutableHashMap}
 
 import org.apache.hadoop.conf.Configuration
@@ -32,14 +34,19 @@ import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse
 import org.apache.hadoop.yarn.api.records._
 import org.apache.hadoop.yarn.client.api.YarnClientApplication
 import org.apache.hadoop.yarn.conf.YarnConfiguration
+import org.apache.hadoop.yarn.exceptions.ResourceNotFoundException
 import org.apache.hadoop.yarn.util.Records
+import org.apache.hadoop.yarn.util.resource.ResourceUtils
 import org.mockito.Matchers.{eq => meq, _}
 import org.mockito.Mockito._
 import org.scalatest.Matchers
 
+import org.scalatest.{BeforeAndAfterAll, Matchers}
 import org.apache.spark.{SparkConf, SparkFunSuite, TestUtils}
 import org.apache.spark.deploy.yarn.config._
 import org.apache.spark.util.{SparkConfWithEnv, Utils}
+import org.apache.spark.util.{ResetSystemProperties, SparkConfWithEnv, Utils}
+import org.junit.Assert
 
 class ClientSuite extends SparkFunSuite with Matchers {
 
@@ -197,6 +204,78 @@ class ClientSuite extends SparkFunSuite with Matchers {
       tags.asScala.count(_.nonEmpty) should be (4)
     }
     appContext.getMaxAppAttempts should be (42)
+  }
+
+  test("configuration and resource type args propagate " +
+    "through createApplicationSubmissionContext, resource type not defined") {
+    val sparkConf = new SparkConf()
+      .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "gpu", "121m")
+    val args = new ClientArguments(Array())
+
+    val appContext = Records.newRecord(classOf[ApplicationSubmissionContext])
+    val getNewApplicationResponse = Records.newRecord(classOf[GetNewApplicationResponse])
+    val containerLaunchContext = Records.newRecord(classOf[ContainerLaunchContext])
+
+    val client = new Client(args, sparkConf)
+
+    intercept[ResourceNotFoundException] {
+      client.createApplicationSubmissionContext(
+        new YarnClientApplication(getNewApplicationResponse, appContext),
+        containerLaunchContext)
+    }
+  }
+
+  test("configuration and resource type args propagate " +
+    "through createApplicationSubmissionContext (client mode)") {
+    TestYarnResourceTypeHelper.initializeResourceTypes(List("gpu", "fpga"))
+
+    val sparkConf = new SparkConf()
+      .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "gpu", "121m")
+      .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "gpu", "122m")
+      .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "fpga", "222m")
+      .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "fpga", "223m")
+    val args = new ClientArguments(Array())
+
+    val appContext = Records.newRecord(classOf[ApplicationSubmissionContext])
+    val getNewApplicationResponse = Records.newRecord(classOf[GetNewApplicationResponse])
+    val containerLaunchContext = Records.newRecord(classOf[ContainerLaunchContext])
+
+    val client = new Client(args, sparkConf)
+    client.createApplicationSubmissionContext(
+      new YarnClientApplication(getNewApplicationResponse, appContext),
+      containerLaunchContext)
+
+    appContext.getAMContainerSpec should be (containerLaunchContext)
+    appContext.getApplicationType should be ("SPARK")
+    appContext.getResource.getResourceInformation("gpu").getValue should be (121)
+    appContext.getResource.getResourceInformation("fpga").getValue should be (222)
+  }
+
+  test("configuration and resource type args propagate " +
+    "through createApplicationSubmissionContext (cluster mode)") {
+    TestYarnResourceTypeHelper.initializeResourceTypes(List("gpu", "fpga"))
+
+    val sparkConf = new SparkConf()
+      .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "gpu", "121m")
+      .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "gpu", "122m")
+      .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "fpga", "222m")
+      .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "fpga", "223m")
+      .set("spark.submit.deployMode", "cluster")
+    val args = new ClientArguments(Array())
+
+    val appContext = Records.newRecord(classOf[ApplicationSubmissionContext])
+    val getNewApplicationResponse = Records.newRecord(classOf[GetNewApplicationResponse])
+    val containerLaunchContext = Records.newRecord(classOf[ContainerLaunchContext])
+
+    val client = new Client(args, sparkConf)
+    client.createApplicationSubmissionContext(
+      new YarnClientApplication(getNewApplicationResponse, appContext),
+      containerLaunchContext)
+
+    appContext.getAMContainerSpec should be (containerLaunchContext)
+    appContext.getApplicationType should be ("SPARK")
+    appContext.getResource.getResourceInformation("gpu").getValue should be (122)
+    appContext.getResource.getResourceInformation("fpga").getValue should be (223)
   }
 
   test("spark.yarn.jars with multiple paths and globs") {

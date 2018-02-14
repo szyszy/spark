@@ -778,6 +778,17 @@ object SparkSubmit extends CommandLineUtils with Logging {
       sparkConf.set("spark.submit.pyFiles", formattedPyFiles)
     }
 
+    // add custom resource types if present
+    if (args.customResourceTypesForExecutor.nonEmpty) {
+      args.customResourceTypesForExecutor.foreach(e => sparkConf.set(e._1, e._2))
+    }
+    if (args.customResourceTypesForDriverClusterMode.nonEmpty) {
+      args.customResourceTypesForDriverClusterMode.foreach(e => sparkConf.set(e._1, e._2))
+    }
+    if (args.customResourceTypesForDriverClientMode.nonEmpty) {
+      args.customResourceTypesForDriverClientMode.foreach(e => sparkConf.set(e._1, e._2))
+    }
+
     (childArgs, childClasspath, sparkConf, childMainClass)
   }
 

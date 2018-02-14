@@ -18,15 +18,14 @@
 package org.apache.spark.deploy.yarn
 
 import scala.collection.JavaConverters._
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.yarn.api.records._
 import org.apache.hadoop.yarn.client.api.AMRMClient
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest
 import org.apache.hadoop.yarn.conf.YarnConfiguration
+import org.apache.hadoop.yarn.util.Records
 import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfterEach, Matchers}
-
 import org.apache.spark.{SecurityManager, SparkConf, SparkFunSuite}
 import org.apache.spark.deploy.yarn.YarnAllocator._
 import org.apache.spark.deploy.yarn.YarnSparkHadoopUtil._
@@ -84,6 +83,18 @@ class YarnAllocatorSuite extends SparkFunSuite with Matchers with BeforeAndAfter
   def createAllocator(
       maxExecutors: Int = 5,
       rmClient: AMRMClient[ContainerRequest] = rmClient): YarnAllocator = {
+    createAllocatorInternal(maxExecutors, rmClient, Map())
+  }
+
+  def createAllocatorWithAdditionalConfigs(maxExecutors: Int = 5,
+                                           additionalConfigs: Map[String, String],
+                                           rmClient: AMRMClient[ContainerRequest] = rmClient):
+  YarnAllocator = {
+    createAllocatorInternal(maxExecutors, rmClient, additionalConfigs)
+  }
+
+  private def createAllocatorInternal(maxExecutors: Int, rmClient: AMRMClient[ContainerRequest],
+                                      additionalConfigs: Map[String, String]) = {
     val args = Array(
       "--jar", "somejar.jar",
       "--class", "SomeClass")
@@ -92,6 +103,12 @@ class YarnAllocatorSuite extends SparkFunSuite with Matchers with BeforeAndAfter
       .set("spark.executor.instances", maxExecutors.toString)
       .set("spark.executor.cores", "5")
       .set("spark.executor.memory", "2048")
+
+    // add additional configs from map
+    for ((name, value) <- additionalConfigs) {
+      sparkConfClone.set(name, value)
+    }
+
     new YarnAllocator(
       "not used",
       mock(classOf[RpcEndpointRef]),
@@ -105,6 +122,14 @@ class YarnAllocatorSuite extends SparkFunSuite with Matchers with BeforeAndAfter
   }
 
   def createContainer(host: String): Container = {
+    createContainerInternal(host, containerResource)
+  }
+
+  def createContainerWithResource(host: String, resource: Resource): Container = {
+    createContainerInternal(host, resource)
+  }
+
+  private def createContainerInternal(host: String, containerResource: Resource) = {
     // When YARN 2.6+ is required, avoid deprecation by using version with long second arg
     val containerId = ContainerId.newInstance(appAttemptId, containerNum)
     containerNum += 1
@@ -128,6 +153,36 @@ class YarnAllocatorSuite extends SparkFunSuite with Matchers with BeforeAndAfter
 
     val size = rmClient.getMatchingRequests(container.getPriority, "host1", containerResource).size
     size should be (0)
+  }
+
+  test("custom resource type requested from yarn") {
+    TestYarnResourceTypeHelper.initializeResourceTypes(List("gpu"))
+
+    // request a single container and receive it
+    val handler = createAllocatorWithAdditionalConfigs(1, Map(YARN_EXECUTOR_RESOURCE_TYPES_PREFIX + "gpu" -> "2G"))
+    handler.updateResourceRequests()
+    handler.getNumExecutorsRunning should be (0)
+    handler.getPendingAllocate.size should be (1)
+
+    val resource = Resource.newInstance(3072, 6)
+    val resourceTypes = Map("gpu" -> "2G")
+    ResourceTypeHelper.setResourceInfoFromResourceTypes(resourceTypes, resource)
+
+    val container = createContainerWithResource("host1", resource)
+    handler.handleAllocatedContainers(Array(container))
+
+    // verify custom resource type is part of rmClient.ask set
+    val askField = rmClient.getClass.getDeclaredField("ask")
+    askField.setAccessible(true)
+    val asks: collection.mutable.Set[ResourceRequest] =
+      askField.get(rmClient).asInstanceOf[java.util.Set[ResourceRequest]].asScala
+
+    asks.size should be (1)
+    asks.head.getCapability shouldNot be (null)
+    val gpuResource = asks.head.getCapability.getResourceInformation("gpu")
+    gpuResource shouldNot be (null)
+    gpuResource.getValue should be (2)
+    gpuResource.getUnits should be ("G")
   }
 
   test("container should not be created if requested number if met") {

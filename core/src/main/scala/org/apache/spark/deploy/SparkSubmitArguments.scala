@@ -81,6 +81,13 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
   var submissionToRequestStatusFor: String = null
   var useRest: Boolean = true // used internally
 
+  var customResourceTypesForDriverClusterMode: Map[String, String] =
+    new collection.immutable.HashMap[String, String]()
+  var customResourceTypesForDriverClientMode: Map[String, String] =
+    new collection.immutable.HashMap[String, String]()
+  var customResourceTypesForExecutor: Map[String, String] =
+    new collection.immutable.HashMap[String, String]()
+
   /** Default properties present in the currently defined defaults file. */
   lazy val defaultSparkProperties: HashMap[String, String] = {
     val defaultProperties = new HashMap[String, String]()
@@ -238,6 +245,59 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
 
     // Action should be SUBMIT unless otherwise specified
     action = Option(action).getOrElse(SUBMIT)
+
+    loadCustomResourceTypes()
+  }
+
+  private def loadCustomResourceTypes(): Unit = {
+    val sparkProps = sparkProperties.toMap
+    customResourceTypesForDriverClusterMode =
+      loadCustomResourceTypesForDriverClusterMode(sparkProps)
+    customResourceTypesForDriverClientMode =
+      loadCustomResourceTypesForDriverClientMode(sparkProps)
+    customResourceTypesForExecutor = loadCustomResourceTypesForExecutor(sparkProps)
+  }
+
+  private def loadCustomResourceTypesForDriverClusterMode(sparkProperties: Map[String, String]) = {
+    val propertyPrefix = "spark.yarn.driver.resource."
+    val envPrefix = "SPARK_YARN_DRIVER_RESOURCE_"
+    loadCustomResourceTypesFor(sparkProperties, propertyPrefix, envPrefix)
+  }
+
+  private def loadCustomResourceTypesForDriverClientMode(sparkProperties: Map[String, String]) = {
+    val propertyPrefix = "spark.yarn.am.resource."
+    val envPrefix = "SPARK_YARN_AM_RESOURCE_"
+    loadCustomResourceTypesFor(sparkProperties, propertyPrefix, envPrefix)
+  }
+
+  private def loadCustomResourceTypesForExecutor(sparkProperties: Map[String, String]) = {
+    val propertyPrefix = "spark.yarn.executor.resource."
+    val envPrefix = "SPARK_YARN_EXECUTOR_RESOURCE_"
+    loadCustomResourceTypesFor(sparkProperties, propertyPrefix, envPrefix)
+  }
+
+  private def loadCustomResourceTypesFor(sparkProperties: Map[String, String],
+                                         propertyPrefix: String,
+                                         envPrefix: String): Map[String, String] = {
+    val result: collection.mutable.HashMap[String, String] =
+      new collection.mutable.HashMap[String, String]()
+
+    val propertiesWithPrefix: Map[String, String] = sparkProperties
+      .filterKeys(_.startsWith(propertyPrefix))
+    propertiesWithPrefix.foreach(e => result.put(e._1, e._2))
+
+    val envVarsWithPrefix: Map[String, String] = env
+      .filterKeys(_.startsWith(envPrefix))
+    envVarsWithPrefix.foreach(e => {
+      val resourceType = e._1.substring(envPrefix.length())
+
+      // override config value with env var value only if conf is not defined with property
+      if (!result.contains(resourceType)) {
+        result.put(propertyPrefix + resourceType, e._2)
+      }
+    })
+
+    result.toMap
   }
 
   /** Ensure that required fields exists. Call this only once all defaults are loaded. */
@@ -291,6 +351,77 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
     if (proxyUser != null && principal != null) {
       SparkSubmit.printErrorAndExit("Only one of --proxy-user or --principal can be provided.")
     }
+
+    validateDuplicateResourceConfig(Seq[ResourceTypeConfigProperties](
+      new ResourceTypeConfigProperties("driver", "client", "memory"),
+      new ResourceTypeConfigProperties("driver", "client", "cores"),
+      new ResourceTypeConfigProperties("driver", "cluster", "memory"),
+      new ResourceTypeConfigProperties("driver", "cluster", "cores"),
+      new ResourceTypeConfigProperties(role = "executor", resourceType = "memory"),
+      new ResourceTypeConfigProperties(role = "executor", resourceType = "cores")))
+  }
+
+
+
+  private def validateDuplicateResourceConfig(resourceTypeConfigProperties:
+                                              Seq[ResourceTypeConfigProperties]) = {
+    resourceTypeConfigProperties
+      .foreach(rtc => validateDuplicateResourceConfigInternal(rtc))
+  }
+
+  private def validateDuplicateResourceConfigInternal(rtc: ResourceTypeConfigProperties): Unit = {
+    val role = rtc.role
+    val mode = rtc.mode
+    val resourceType = rtc.resourceType
+
+    if (role != "driver" && role != "executor") {
+      throw new IllegalArgumentException("Role must be either 'driver' or 'executor'!")
+    }
+    if (mode != "" && mode != "client" && mode != "cluster") {
+      throw new IllegalArgumentException("Mode must be either 'client' or 'cluster'!")
+    }
+    if (resourceType != "cores" && resourceType != "memory") {
+      throw new IllegalArgumentException("Resource type must be either 'cores' or 'memory'!")
+    }
+
+    var customResourceTypes: Map[String, String] = null
+    (role, mode, resourceType) match {
+      case ("executor", _, _) => customResourceTypes = customResourceTypesForExecutor
+      case ("driver", "client", _) => customResourceTypes = customResourceTypesForDriverClientMode
+      case ("driver", "cluster", _) => customResourceTypes = customResourceTypesForDriverClusterMode
+    }
+
+    var resourceTypeObj: String = null
+    (role, resourceType) match {
+      case ("driver", "cores") => resourceTypeObj = driverCores
+      case ("driver", "memory") => resourceTypeObj = driverMemory
+      case ("executor", "cores") => resourceTypeObj = executorCores
+      case ("executor", "memory") => resourceTypeObj = executorMemory
+    }
+
+    val (standardResourceTypeId: String, customResourceTypeId: String) =
+      getResourceTypeIdsByRole(role, mode, resourceType)
+
+    if (resourceTypeObj != null && customResourceTypes.contains(customResourceTypeId)) {
+      SparkSubmit.printErrorAndExit(s"$standardResourceTypeId and $customResourceTypeId" +
+        " configs are both present, only one of them is allowed at the same time!")
+    }
+  }
+
+
+  private def getResourceTypeIdsByRole(role: String, mode: String, resourceType: String) = {
+    val standardResourceTypeId: String = s"spark.$role.$resourceType"
+
+    var customResourceTypeId: String = ""
+    (role, mode) match {
+      case ("driver", "client") => customResourceTypeId += "spark.yarn.am.resource."
+      case ("driver", "cluster") => customResourceTypeId += "spark.yarn.driver.resource."
+      case ("executor", _) => customResourceTypeId += "spark.yarn.executor.resource."
+    }
+
+    customResourceTypeId += resourceType
+
+    (standardResourceTypeId, customResourceTypeId)
   }
 
   private def validateKillArguments(): Unit = {
@@ -653,4 +784,8 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
       System.setErr(currentErr)
     }
   }
+
+  private class ResourceTypeConfigProperties (val role: String,
+                                              val mode : String = "",
+                                              val resourceType: String)
 }
