@@ -18,14 +18,15 @@
 package org.apache.spark.deploy.yarn
 
 import scala.collection.JavaConverters._
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.yarn.api.records._
 import org.apache.hadoop.yarn.client.api.AMRMClient
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest
 import org.apache.hadoop.yarn.conf.YarnConfiguration
-import org.apache.hadoop.yarn.util.Records
 import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfterEach, Matchers}
+
 import org.apache.spark.{SecurityManager, SparkConf, SparkFunSuite}
 import org.apache.spark.deploy.yarn.YarnAllocator._
 import org.apache.spark.deploy.yarn.YarnSparkHadoopUtil._
@@ -59,6 +60,13 @@ class YarnAllocatorSuite extends SparkFunSuite with Matchers with BeforeAndAfter
   var rmClient: AMRMClient[ContainerRequest] = _
 
   var containerNum = 0
+
+  private var yarnResourceTypesAvailable = false
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    yarnResourceTypesAvailable = TestYarnResourceTypeHelper.isYarnResourceTypesAvailable()
+  }
 
   override def beforeEach() {
     super.beforeEach()
@@ -156,10 +164,12 @@ class YarnAllocatorSuite extends SparkFunSuite with Matchers with BeforeAndAfter
   }
 
   test("custom resource type requested from yarn") {
+    assume(yarnResourceTypesAvailable)
     TestYarnResourceTypeHelper.initializeResourceTypes(List("gpu"))
 
     // request a single container and receive it
-    val handler = createAllocatorWithAdditionalConfigs(1, Map(YARN_EXECUTOR_RESOURCE_TYPES_PREFIX + "gpu" -> "2G"))
+    val handler = createAllocatorWithAdditionalConfigs(1,
+      Map(YARN_EXECUTOR_RESOURCE_TYPES_PREFIX + "gpu" -> "2G"))
     handler.updateResourceRequests()
     handler.getNumExecutorsRunning should be (0)
     handler.getPendingAllocate.size should be (1)
@@ -179,10 +189,12 @@ class YarnAllocatorSuite extends SparkFunSuite with Matchers with BeforeAndAfter
 
     asks.size should be (1)
     asks.head.getCapability shouldNot be (null)
-    val gpuResource = asks.head.getCapability.getResourceInformation("gpu")
+
+    val gpuResource = TestYarnResourceTypeHelper
+      .getResourceInformationByName(asks.head.getCapability, "gpu")
     gpuResource shouldNot be (null)
-    gpuResource.getValue should be (2)
-    gpuResource.getUnits should be ("G")
+    gpuResource.value should be (2)
+    gpuResource.units should be ("G")
   }
 
   test("container should not be created if requested number if met") {

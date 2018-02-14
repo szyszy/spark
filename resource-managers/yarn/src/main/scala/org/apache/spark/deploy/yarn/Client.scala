@@ -17,9 +17,7 @@
 
 package org.apache.spark.deploy.yarn
 
-import java.io.{File, FileOutputStream, IOException, OutputStreamWriter}
-import java.net.{InetAddress, URI, UnknownHostException}
-import java.io.{FileSystem => _, _}
+import java.io.{File, FileOutputStream, IOException, OutputStreamWriter, _}
 import java.net.{InetAddress, UnknownHostException, URI}
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
@@ -30,6 +28,7 @@ import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet, ListBuffer, Map}
 import scala.util.control.NonFatal
+
 import com.google.common.base.Objects
 import com.google.common.io.Files
 import org.apache.hadoop.conf.Configuration
@@ -45,8 +44,9 @@ import org.apache.hadoop.yarn.api.protocolrecords._
 import org.apache.hadoop.yarn.api.records._
 import org.apache.hadoop.yarn.client.api.{YarnClient, YarnClientApplication}
 import org.apache.hadoop.yarn.conf.YarnConfiguration
-import org.apache.hadoop.yarn.exceptions.{ApplicationNotFoundException, ResourceNotFoundException}
+import org.apache.hadoop.yarn.exceptions.ApplicationNotFoundException
 import org.apache.hadoop.yarn.util.Records
+
 import org.apache.spark.{SecurityManager, SparkConf, SparkException}
 import org.apache.spark.deploy.{SparkApplication, SparkHadoopUtil}
 import org.apache.spark.deploy.yarn.config._
@@ -149,6 +149,8 @@ private[spark] class Client(
    * available in the alpha API.
    */
   def submitApplication(): ApplicationId = {
+    logDebug(s"Driver resource types: $driverResourceTypes")
+
     var appId: ApplicationId = null
     try {
       launcherBackend.connect()
@@ -255,7 +257,7 @@ private[spark] class Client(
     capability.setMemory(amMemory + amMemoryOverhead)
     capability.setVirtualCores(amCores)
     ResourceTypeHelper.setResourceInfoFromResourceTypes(driverResourceTypes, capability)
-    logDebug("Created resource capability: %s".format(capability.toString))
+    logDebug("Created resource capability for AM request: %s".format(capability.toString))
 
     sparkConf.get(AM_NODE_LABEL_EXPRESSION) match {
       case Some(expr) =>

@@ -22,9 +22,8 @@ import java.net.URI
 import java.util.Properties
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.{ListBuffer, HashMap => MutableHashMap}
-import org.apache.commons.lang3.SerializationUtils
 import scala.collection.mutable.{HashMap => MutableHashMap}
+import scala.util.control.NonFatal
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
@@ -34,25 +33,26 @@ import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse
 import org.apache.hadoop.yarn.api.records._
 import org.apache.hadoop.yarn.client.api.YarnClientApplication
 import org.apache.hadoop.yarn.conf.YarnConfiguration
-import org.apache.hadoop.yarn.exceptions.ResourceNotFoundException
 import org.apache.hadoop.yarn.util.Records
-import org.apache.hadoop.yarn.util.resource.ResourceUtils
 import org.mockito.Matchers.{eq => meq, _}
 import org.mockito.Mockito._
-import org.scalatest.Matchers
-
 import org.scalatest.{BeforeAndAfterAll, Matchers}
+
 import org.apache.spark.{SparkConf, SparkFunSuite, TestUtils}
 import org.apache.spark.deploy.yarn.config._
 import org.apache.spark.util.{SparkConfWithEnv, Utils}
-import org.apache.spark.util.{ResetSystemProperties, SparkConfWithEnv, Utils}
-import org.junit.Assert
 
-class ClientSuite extends SparkFunSuite with Matchers {
+class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
 
   import Client._
 
   var oldSystemProperties: Properties = null
+  private var yarnResourceTypesAvailable = false
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    yarnResourceTypesAvailable = TestYarnResourceTypeHelper.isYarnResourceTypesAvailable()
+  }
 
   test("default Yarn application classpath") {
     getDefaultYarnApplicationClasspath should be(Fixtures.knownDefYarnAppCP)
@@ -208,6 +208,7 @@ class ClientSuite extends SparkFunSuite with Matchers {
 
   test("configuration and resource type args propagate " +
     "through createApplicationSubmissionContext, resource type not defined") {
+    assume(yarnResourceTypesAvailable)
     val sparkConf = new SparkConf()
       .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "gpu", "121m")
     val args = new ClientArguments(Array())
@@ -218,15 +219,22 @@ class ClientSuite extends SparkFunSuite with Matchers {
 
     val client = new Client(args, sparkConf)
 
-    intercept[ResourceNotFoundException] {
+    try {
       client.createApplicationSubmissionContext(
         new YarnClientApplication(getNewApplicationResponse, appContext),
         containerLaunchContext)
+    } catch {
+      case NonFatal(e) =>
+        val expectedExceptionClass = "org.apache.hadoop.yarn.exceptions.ResourceNotFoundException"
+        if (e.getClass.getName != expectedExceptionClass) {
+          fail(s"Exception caught: $e is not an instance of $expectedExceptionClass!")
+        }
     }
   }
 
   test("configuration and resource type args propagate " +
     "through createApplicationSubmissionContext (client mode)") {
+    assume(yarnResourceTypesAvailable)
     TestYarnResourceTypeHelper.initializeResourceTypes(List("gpu", "fpga"))
 
     val sparkConf = new SparkConf()
@@ -247,12 +255,13 @@ class ClientSuite extends SparkFunSuite with Matchers {
 
     appContext.getAMContainerSpec should be (containerLaunchContext)
     appContext.getApplicationType should be ("SPARK")
-    appContext.getResource.getResourceInformation("gpu").getValue should be (121)
-    appContext.getResource.getResourceInformation("fpga").getValue should be (222)
+    TestYarnResourceTypeHelper.getResourceTypeValue(appContext.getResource, "gpu") should be (121)
+    TestYarnResourceTypeHelper.getResourceTypeValue(appContext.getResource, "fpga") should be (222)
   }
 
   test("configuration and resource type args propagate " +
     "through createApplicationSubmissionContext (cluster mode)") {
+    assume(yarnResourceTypesAvailable)
     TestYarnResourceTypeHelper.initializeResourceTypes(List("gpu", "fpga"))
 
     val sparkConf = new SparkConf()
@@ -274,8 +283,8 @@ class ClientSuite extends SparkFunSuite with Matchers {
 
     appContext.getAMContainerSpec should be (containerLaunchContext)
     appContext.getApplicationType should be ("SPARK")
-    appContext.getResource.getResourceInformation("gpu").getValue should be (122)
-    appContext.getResource.getResourceInformation("fpga").getValue should be (223)
+    TestYarnResourceTypeHelper.getResourceTypeValue(appContext.getResource, "gpu") should be (122)
+    TestYarnResourceTypeHelper.getResourceTypeValue(appContext.getResource, "fpga") should be (223)
   }
 
   test("spark.yarn.jars with multiple paths and globs") {

@@ -17,23 +17,31 @@
 
 package org.apache.spark.deploy.yarn
 
-import scala.collection.JavaConverters._
-import org.apache.hadoop.yarn.api.records.{Resource, ResourceTypeInfo}
+import org.apache.hadoop.yarn.api.records.Resource
 import org.apache.hadoop.yarn.util.Records
-import org.apache.hadoop.yarn.util.resource.ResourceUtils
+import org.scalatest.{BeforeAndAfterAll, Matchers}
+
 import org.apache.spark.SparkFunSuite
-import org.junit.Assert
-import org.scalatest.Matchers
+import org.apache.spark.deploy.yarn.TestYarnResourceTypeHelper.ResourceInformation
 
-import scala.collection.mutable.ListBuffer
-
-
-class ResourceTypeHelperSuite extends SparkFunSuite with Matchers {
+class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
 
   private val CUSTOM_RES_1 = "custom-resource-type-1"
   private val CUSTOM_RES_2 = "custom-resource-type-2"
+  private var yarnResourceTypesAvailable = false
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    yarnResourceTypesAvailable = TestYarnResourceTypeHelper.isYarnResourceTypesAvailable()
+  }
+
+  private def getExpectedUnmatchedErrorMessage(value: String) = {
+    "Value of resource type should match pattern " +
+      s"([0-9]+)([A-Za-z]*), unmatched value: $value"
+  }
 
   test("resource type value does not match pattern") {
+    assume(yarnResourceTypesAvailable)
     TestYarnResourceTypeHelper.initializeResourceTypes(List())
 
     val resourceTypes = Map(CUSTOM_RES_1 -> "**@#")
@@ -41,11 +49,11 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers {
     val thrown = intercept[IllegalArgumentException] {
       ResourceTypeHelper.setResourceInfoFromResourceTypes(resourceTypes, createAResource)
     }
-    thrown.getMessage should equal ("Value of resource type should match pattern " +
-      "([0-9]+)([A-Za-z]*), unmatched value: **@#")
+    thrown.getMessage should equal (getExpectedUnmatchedErrorMessage("**@#"))
   }
 
   test("resource type just unit defined") {
+    assume(yarnResourceTypesAvailable)
     TestYarnResourceTypeHelper.initializeResourceTypes(List())
 
     val resourceTypes = Map(CUSTOM_RES_1 -> "m")
@@ -53,11 +61,11 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers {
     val thrown = intercept[IllegalArgumentException] {
       ResourceTypeHelper.setResourceInfoFromResourceTypes(resourceTypes, createAResource)
     }
-    thrown.getMessage should equal ("Value of resource type should match pattern " +
-      "([0-9]+)([A-Za-z]*), unmatched value: m")
+    thrown.getMessage should equal (getExpectedUnmatchedErrorMessage("m"))
   }
 
   test("resource type with null value should not be allowed") {
+    assume(yarnResourceTypesAvailable)
     TestYarnResourceTypeHelper.initializeResourceTypes(List())
 
     val resourceTypes = Map(CUSTOM_RES_1 -> "123")
@@ -65,10 +73,11 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers {
     val thrown = intercept[IllegalArgumentException] {
       ResourceTypeHelper.setResourceInfoFromResourceTypes(resourceTypes, null)
     }
-    thrown.getMessage should equal ("Resource should not be null!")
+    thrown.getMessage should equal ("Resource parameter should not be null!")
   }
 
   test("resource type with valid value and invalid unit") {
+    assume(yarnResourceTypesAvailable)
     TestYarnResourceTypeHelper.initializeResourceTypes(List(CUSTOM_RES_1))
 
     val resourceTypes = Map(CUSTOM_RES_1 -> "123ppp")
@@ -82,32 +91,37 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers {
   }
 
   test("resource type with valid value and without unit") {
+    assume(yarnResourceTypesAvailable)
     TestYarnResourceTypeHelper.initializeResourceTypes(List(CUSTOM_RES_1))
 
     val resourceTypes = Map(CUSTOM_RES_1 -> "123")
     val resource = createAResource
 
     ResourceTypeHelper.setResourceInfoFromResourceTypes(resourceTypes, resource)
-    val customResource = resource.getResourceInformation(CUSTOM_RES_1)
-    customResource.getName should equal (CUSTOM_RES_1)
-    customResource.getValue should be (123)
-    customResource.getUnits should be ("")
+    val customResource: ResourceInformation = TestYarnResourceTypeHelper
+      .getResourceInformationByName(resource, CUSTOM_RES_1)
+    customResource.name should equal (CUSTOM_RES_1)
+    customResource.value should be (123)
+    customResource.units should be ("")
   }
 
   test("resource type with valid value and unit") {
+    assume(yarnResourceTypesAvailable)
     TestYarnResourceTypeHelper.initializeResourceTypes(List(CUSTOM_RES_1))
 
     val resourceTypes = Map(CUSTOM_RES_1 -> "123m")
     val resource = createAResource
 
     ResourceTypeHelper.setResourceInfoFromResourceTypes(resourceTypes, resource)
-    val customResource = resource.getResourceInformation(CUSTOM_RES_1)
-    customResource.getName should equal (CUSTOM_RES_1)
-    customResource.getValue should be (123)
-    customResource.getUnits should be ("m")
+    val customResource: ResourceInformation = TestYarnResourceTypeHelper
+      .getResourceInformationByName(resource, CUSTOM_RES_1)
+    customResource.name should equal (CUSTOM_RES_1)
+    customResource.value should be (123)
+    customResource.units should be ("m")
   }
 
   test("two resource types with valid values and units") {
+    assume(yarnResourceTypesAvailable)
     TestYarnResourceTypeHelper.initializeResourceTypes(List(CUSTOM_RES_1, CUSTOM_RES_2))
 
     val resourceTypes = Map(
@@ -117,20 +131,22 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers {
     val resource = createAResource
 
     ResourceTypeHelper.setResourceInfoFromResourceTypes(resourceTypes, resource)
-    val customResource1 = resource.getResourceInformation(CUSTOM_RES_1)
-    customResource1.getName should equal (CUSTOM_RES_1)
-    customResource1.getValue should be (123)
-    customResource1.getUnits should be ("m")
+    val customResource1: ResourceInformation = TestYarnResourceTypeHelper
+      .getResourceInformationByName(resource, CUSTOM_RES_1)
+    customResource1.name should equal (CUSTOM_RES_1)
+    customResource1.value should be (123)
+    customResource1.units should be ("m")
 
-    val customResource2 = resource.getResourceInformation(CUSTOM_RES_2)
-    customResource2.getName should equal (CUSTOM_RES_2)
-    customResource2.getValue should be (10)
-    customResource2.getUnits should be ("G")
+    val customResource2: ResourceInformation = TestYarnResourceTypeHelper
+      .getResourceInformationByName(resource, CUSTOM_RES_2)
+    customResource2.name should equal (CUSTOM_RES_2)
+    customResource2.value should be (10)
+    customResource2.units should be ("G")
   }
 
   private def createAResource = {
     val resource = Records.newRecord(classOf[Resource])
-    resource.setMemorySize(512)
+    resource.setMemory(512)
     resource.setVirtualCores(2)
     resource
   }

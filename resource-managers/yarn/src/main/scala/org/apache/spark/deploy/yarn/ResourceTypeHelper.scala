@@ -17,29 +17,54 @@
 
 package org.apache.spark.deploy.yarn
 
-import org.apache.hadoop.yarn.api.records.{Resource, ResourceInformation}
+import java.lang.reflect.InvocationTargetException
+
+import scala.util.control.NonFatal
+
+import org.apache.hadoop.yarn.api.records.Resource
+
+import org.apache.spark.internal.Logging
+import org.apache.spark.util.Utils
 
 private[yarn] class ResourceTypeHelper {
 }
 
-object ResourceTypeHelper {
+object ResourceTypeHelper extends Logging {
   def setResourceInfoFromResourceTypes(resourceTypes: Map[String, String],
-                                       res: Resource): Resource = {
-    if (res == null) {
-      throw new IllegalArgumentException("Resource should not be null!")
+                                       resource: Resource): Resource = {
+    if (resource == null) {
+      throw new IllegalArgumentException("Resource parameter should not be null!")
     }
+
+    logDebug(s"Size of custom resource types: ${resourceTypes.size}")
     resourceTypes.foreach(rt => {
-      val resourceName = rt._1
+      val resourceName: String = rt._1
       val (amount, unit) = getAmountAndUnit(rt._2)
-      if (unit.length > 0) {
-        res.setResourceInformation(resourceName,
-          ResourceInformation.newInstance(resourceName, unit, amount))
-      } else {
-        res.setResourceInformation(resourceName,
-          ResourceInformation.newInstance(resourceName, amount))
+      logDebug(s"Registering resource with name: $resourceName, amount: $amount, unit: $unit")
+
+      // These yarn client methods were added in Hadoop 3, so we still need to use reflection to
+      // avoid compile error when building against Hadoop 2.x
+      try {
+        val resInfoClass = Utils.
+          classForName("org.apache.hadoop.yarn.api.records.ResourceInformation")
+        val setResourceInformationMethod =
+          resource.getClass.getMethod("setResourceInformation", classOf[String],
+            resInfoClass)
+
+        val resourceInformation: AnyRef =
+          createResourceInformation(resourceName, amount, unit, resInfoClass)
+        setResourceInformationMethod.invoke(resource, resourceName, resourceInformation)
+      } catch {
+        case e: InvocationTargetException =>
+          if (e.getCause != null) {
+            throw e.getCause
+          }
+        case NonFatal(e) =>
+          logWarning(s"Ignoring updating resource with resource types because " +
+            s"the version of YARN does not support it!", e)
       }
     })
-    res
+    resource
   }
 
   def getAmountAndUnit(s: String): (Long, String) = {
@@ -51,5 +76,22 @@ object ResourceTypeHelper {
       case _: MatchError => throw new IllegalArgumentException(
         s"Value of resource type should match pattern $pattern, unmatched value: $s")
     }
+  }
+
+  private def createResourceInformation(resourceName: String,
+                                        amount: Long,
+                                        unit: String,
+                                        resInfoClass: Class[_]) = {
+    val resourceInformation =
+      if (unit.length > 0) {
+        val resInfoNewInstanceMethod = resInfoClass.getMethod("newInstance",
+          classOf[String], classOf[String], classOf[Long])
+        resInfoNewInstanceMethod.invoke(null, resourceName, unit, amount.asInstanceOf[AnyRef])
+      } else {
+        val resInfoNewInstanceMethod = resInfoClass.getMethod("newInstance",
+          classOf[String], classOf[Long])
+        resInfoNewInstanceMethod.invoke(null, resourceName, amount.asInstanceOf[AnyRef])
+      }
+    resourceInformation
   }
 }

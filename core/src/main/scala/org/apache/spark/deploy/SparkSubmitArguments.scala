@@ -25,6 +25,7 @@ import java.util.{List => JList}
 import java.util.jar.JarFile
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 import scala.io.Source
 import scala.util.Try
@@ -261,24 +262,24 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
   private def loadCustomResourceTypesForDriverClusterMode(sparkProperties: Map[String, String]) = {
     val propertyPrefix = "spark.yarn.driver.resource."
     val envPrefix = "SPARK_YARN_DRIVER_RESOURCE_"
-    loadCustomResourceTypesFor(sparkProperties, propertyPrefix, envPrefix)
+    loadCustomResourceTypesInternal(sparkProperties, propertyPrefix, envPrefix)
   }
 
   private def loadCustomResourceTypesForDriverClientMode(sparkProperties: Map[String, String]) = {
     val propertyPrefix = "spark.yarn.am.resource."
     val envPrefix = "SPARK_YARN_AM_RESOURCE_"
-    loadCustomResourceTypesFor(sparkProperties, propertyPrefix, envPrefix)
+    loadCustomResourceTypesInternal(sparkProperties, propertyPrefix, envPrefix)
   }
 
   private def loadCustomResourceTypesForExecutor(sparkProperties: Map[String, String]) = {
     val propertyPrefix = "spark.yarn.executor.resource."
     val envPrefix = "SPARK_YARN_EXECUTOR_RESOURCE_"
-    loadCustomResourceTypesFor(sparkProperties, propertyPrefix, envPrefix)
+    loadCustomResourceTypesInternal(sparkProperties, propertyPrefix, envPrefix)
   }
 
-  private def loadCustomResourceTypesFor(sparkProperties: Map[String, String],
-                                         propertyPrefix: String,
-                                         envPrefix: String): Map[String, String] = {
+  private def loadCustomResourceTypesInternal(sparkProperties: Map[String, String],
+                                              propertyPrefix: String,
+                                              envPrefix: String): Map[String, String] = {
     val result: collection.mutable.HashMap[String, String] =
       new collection.mutable.HashMap[String, String]()
 
@@ -361,8 +362,6 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
       new ResourceTypeConfigProperties(role = "executor", resourceType = "cores")))
   }
 
-
-
   private def validateDuplicateResourceConfig(resourceTypeConfigProperties:
                                               Seq[ResourceTypeConfigProperties]) = {
     resourceTypeConfigProperties
@@ -407,7 +406,6 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
         " configs are both present, only one of them is allowed at the same time!")
     }
   }
-
 
   private def getResourceTypeIdsByRole(role: String, mode: String, resourceType: String) = {
     val standardResourceTypeId: String = s"spark.$role.$resourceType"
