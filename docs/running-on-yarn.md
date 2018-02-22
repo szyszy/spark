@@ -120,6 +120,28 @@ To use a custom metrics.properties for the application master and executors, upd
   </td>
 </tr>
 <tr>
+  <td><code>spark.yarn.am.resource.&lt;resource-type&gt;</code></td>
+  <td><code>(none)</code></td>
+  <td>
+    Amount of resource to use for the YARN Application Master in client mode.
+    In cluster mode, use <code>spark.yarn.driver.resource.&lt;resource-type&gt;</code> instead
+  </td>
+</tr>
+<tr>
+  <td><code>spark.yarn.driver.resource.&lt;resource-type&gt;</code></td>
+  <td><code>(none)</code></td>
+  <td>
+    Amount of resource to use for the YARN Application Master in cluster mode.
+  </td>
+</tr>
+<tr>
+  <td><code>spark.yarn.executor.resource.&lt;resource-type&gt;</code></td>
+  <td><code>(none)</code></td>
+ <td>
+     Amount of resource to use per executor process.
+ </td>
+</tr>
+<tr>
   <td><code>spark.yarn.am.cores</code></td>
   <td><code>1</code></td>
   <td>
