@@ -364,11 +364,21 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
 
   private def validateDuplicateResourceConfig(resourceTypeConfigProperties:
                                               Seq[ResourceTypeConfigProperties]) = {
+    val sb = new mutable.StringBuilder()
     resourceTypeConfigProperties
-      .foreach(rtc => validateDuplicateResourceConfigInternal(rtc))
+      .foreach(rtc => {
+        val errorMessage = validateDuplicateResourceConfigInternal(rtc)
+        if (errorMessage.nonEmpty) {
+          SparkSubmit.printError(sb, errorMessage)
+        }
+      })
+
+    if (sb.nonEmpty) {
+      SparkSubmit.printErrorAndExit(sb.toString())
+    }
   }
 
-  private def validateDuplicateResourceConfigInternal(rtc: ResourceTypeConfigProperties): Unit = {
+  private def validateDuplicateResourceConfigInternal(rtc: ResourceTypeConfigProperties): String = {
     val role = rtc.role
     val mode = rtc.mode
     val resourceType = rtc.resourceType
@@ -402,9 +412,15 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
       getResourceTypeIdsByRole(role, mode, resourceType)
 
     if (resourceTypeObj != null && customResourceTypes.contains(customResourceTypeId)) {
-      SparkSubmit.printErrorAndExit(s"$standardResourceTypeId and $customResourceTypeId" +
-        " configs are both present, only one of them is allowed at the same time!")
+      return formatDuplicateResourceTypeErrorMessage(standardResourceTypeId, customResourceTypeId)
     }
+    ""
+  }
+
+  private def formatDuplicateResourceTypeErrorMessage(standardResourceTypeId: String,
+                                                      customResourceTypeId: String): String = {
+    s"$standardResourceTypeId and $customResourceTypeId" +
+      " configs are both present, only one of them is allowed at the same time!"
   }
 
   private def getResourceTypeIdsByRole(role: String, mode: String, resourceType: String) = {

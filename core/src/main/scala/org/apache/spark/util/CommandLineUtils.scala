@@ -32,14 +32,29 @@ private[spark] trait CommandLineUtils {
 
   private[spark] var printStream: PrintStream = System.err
 
+  private val ERROR_PREFIX: String = "Error: "
+
   // scalastyle:off println
 
   private[spark] def printWarning(str: String): Unit = printStream.println("Warning: " + str)
 
   private[spark] def printErrorAndExit(str: String): Unit = {
-    printStream.println("Error: " + str)
-    printStream.println("Run with --help for usage help or --verbose for debug output")
+    printError(str)
     exitFn(1)
+  }
+
+  private def printError(str: String) = {
+    if (!str.startsWith(ERROR_PREFIX)) {
+      printStream.println(ERROR_PREFIX + str)
+    } else {
+      printStream.println(str)
+    }
+
+    printStream.println("Run with --help for usage help or --verbose for debug output")
+  }
+
+  private[spark] def printError(sb: StringBuilder, str: String) = {
+    sb.append(s"$ERROR_PREFIX$str\n")
   }
 
   // scalastyle:on println

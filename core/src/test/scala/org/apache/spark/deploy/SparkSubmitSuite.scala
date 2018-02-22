@@ -67,6 +67,19 @@ trait TestPrematureExit {
       input: Array[String],
       searchString: String,
       mainObject: CommandLineUtils = SparkSubmit) : Unit = {
+    testPrematureExitInternal(input, searchString, mainObject)
+  }
+
+  private[spark] def testPrematureExit2(input: Array[String],
+                                       searchStrings: Array[String],
+                                       mainObject: CommandLineUtils = SparkSubmit) : Unit = {
+    searchStrings.foreach(searchString =>
+      testPrematureExitInternal(input, searchString, mainObject))
+  }
+
+  def testPrematureExitInternal(input: Array[String],
+                                searchString: String,
+                                mainObject: CommandLineUtils): Unit = {
     val printStream = new BufferPrintStream()
     mainObject.printStream = printStream
 
@@ -178,6 +191,24 @@ class SparkSubmitSuite
       "--conf", "spark.yarn.executor.resource.memory=3G"),
       "spark.executor.memory and spark.yarn.executor.resource.memory " +
         "configs are both present, only one of them is allowed at the same time!")
+  }
+
+  test("test validation of resource types: various duplicated definitions") {
+    testPrematureExit2(Array(
+      "--conf", "spark.driver.memory=2G",
+      "--conf", "spark.driver.cores=2",
+      "--conf", "spark.executor.memory=2G",
+      "--conf", "spark.executor.cores=4",
+      "--conf", "spark.yarn.executor.resource.memory=3G",
+      "--conf", "spark.yarn.am.resource.memory=2G",
+      "--conf", "spark.yarn.driver.resource.memory=2G"),
+      Array("spark.executor.memory and spark.yarn.executor.resource.memory " +
+        "configs are both present, only one of them is allowed at the same time!",
+        "spark.driver.memory and spark.yarn.am.resource.memory " +
+          "configs are both present, only one of them is allowed at the same time!",
+        "spark.driver.memory and spark.yarn.driver.resource.memory " +
+          "configs are both present, only one of them is allowed at the same time!"
+      ))
   }
 
   test("handles arguments with --key=val") {
@@ -819,11 +850,11 @@ class SparkSubmitSuite
     classpath should have length 1
     classpath(0) should endWith ("thejar.jar")
     conf.get("spark.yarn.am.resource.gpu") should be ("120m")
-    conf.get("spark.driver.resource.gpu") should be ("121m")
-    conf.get("spark.executor.resource.gpu") should be ("122m")
+    conf.get("spark.yarn.driver.resource.gpu") should be ("121m")
+    conf.get("spark.yarn.executor.resource.gpu") should be ("122m")
     conf.get("spark.yarn.am.resource.fpga") should be ("555m")
-    conf.get("spark.driver.resource.fpga") should be ("556m")
-    conf.get("spark.executor.resource.fpga") should be ("557m")
+    conf.get("spark.yarn.driver.resource.fpga") should be ("556m")
+    conf.get("spark.yarn.executor.resource.fpga") should be ("557m")
   }
 
   test("SPARK_CONF_DIR overrides spark-defaults.conf") {
