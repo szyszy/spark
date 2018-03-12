@@ -67,19 +67,6 @@ trait TestPrematureExit {
       input: Array[String],
       searchString: String,
       mainObject: CommandLineUtils = SparkSubmit) : Unit = {
-    testPrematureExitInternal(input, searchString, mainObject)
-  }
-
-  private[spark] def testPrematureExit2(input: Array[String],
-                                       searchStrings: Array[String],
-                                       mainObject: CommandLineUtils = SparkSubmit) : Unit = {
-    searchStrings.foreach(searchString =>
-      testPrematureExitInternal(input, searchString, mainObject))
-  }
-
-  def testPrematureExitInternal(input: Array[String],
-                                searchString: String,
-                                mainObject: CommandLineUtils): Unit = {
     val printStream = new BufferPrintStream()
     mainObject.printStream = printStream
 
@@ -121,10 +108,6 @@ class SparkSubmitSuite
 
   override def beforeEach() {
     super.beforeEach()
-    System.setProperty("spark.testing", "true")
-    if (System.getProperty("spark.test.home") == null) {
-      System.setProperty("spark.test.home", "dummySparkHome")
-    }
   }
 
   // scalastyle:off println
@@ -143,72 +126,6 @@ class SparkSubmitSuite
 
   test("handle binary specified but not class") {
     testPrematureExit(Array("foo.jar"), "No main class")
-  }
-
-  test("test validation of resource types: driver memory / yarn memory, client mode") {
-    testPrematureExit(Array(
-      "--conf", "spark.driver.memory=2G",
-      "--conf", "spark.yarn.am.resource.memory=1G"),
-      "spark.driver.memory and spark.yarn.am.resource.memory " +
-      "configs are both present, only one of them is allowed at the same time!")
-  }
-
-  test("test validation of resource types: driver memory / yarn memory, cluster mode") {
-    testPrematureExit(Array(
-      "--conf", "spark.driver.memory=2G",
-      "--conf", "spark.yarn.driver.resource.memory=1G"),
-      "spark.driver.memory and spark.yarn.driver.resource.memory " +
-        "configs are both present, only one of them is allowed at the same time!")
-  }
-
-  test("test validation of resource types: driver cores / yarn cores, client mode") {
-    testPrematureExit(Array(
-      "--conf", "spark.driver.cores=1",
-      "--conf", "spark.yarn.am.resource.cores=3"),
-      "spark.driver.cores and spark.yarn.am.resource.cores " +
-        "configs are both present, only one of them is allowed at the same time!")
-  }
-
-  test("test validation of resource types: driver cores / yarn cores, cluster mode") {
-    testPrematureExit(Array(
-      "--conf", "spark.driver.cores=1",
-      "--conf", "spark.yarn.driver.resource.cores=3"),
-      "spark.driver.cores and spark.yarn.driver.resource.cores " +
-        "configs are both present, only one of them is allowed at the same time!")
-  }
-
-  test("test validation of resource types: executor cores / yarn cores") {
-    testPrematureExit(Array(
-      "--conf", "spark.executor.cores=1",
-      "--conf", "spark.yarn.executor.resource.cores=3"),
-      "spark.executor.cores and spark.yarn.executor.resource.cores " +
-        "configs are both present, only one of them is allowed at the same time!")
-  }
-
-  test("test validation of resource types: executor memory / yarn memory") {
-    testPrematureExit(Array(
-      "--conf", "spark.executor.memory=2G",
-      "--conf", "spark.yarn.executor.resource.memory=3G"),
-      "spark.executor.memory and spark.yarn.executor.resource.memory " +
-        "configs are both present, only one of them is allowed at the same time!")
-  }
-
-  test("test validation of resource types: various duplicated definitions") {
-    testPrematureExit2(Array(
-      "--conf", "spark.driver.memory=2G",
-      "--conf", "spark.driver.cores=2",
-      "--conf", "spark.executor.memory=2G",
-      "--conf", "spark.executor.cores=4",
-      "--conf", "spark.yarn.executor.resource.memory=3G",
-      "--conf", "spark.yarn.am.resource.memory=2G",
-      "--conf", "spark.yarn.driver.resource.memory=2G"),
-      Array("spark.executor.memory and spark.yarn.executor.resource.memory " +
-        "configs are both present, only one of them is allowed at the same time!",
-        "spark.driver.memory and spark.yarn.am.resource.memory " +
-          "configs are both present, only one of them is allowed at the same time!",
-        "spark.driver.memory and spark.yarn.driver.resource.memory " +
-          "configs are both present, only one of them is allowed at the same time!"
-      ))
   }
 
   test("handles arguments with --key=val") {
@@ -828,33 +745,6 @@ class SparkSubmitSuite
       "--conf", "spark.master.rest.enabled=false",
       userJar.toString)
     runSparkSubmit(args)
-  }
-
-  test("handles custom resource types") {
-    val clArgs = Seq(
-      "--deploy-mode", "client",
-      "--master", "yarn",
-      "--class", "org.SomeClass",
-      "--conf", "spark.yarn.am.resource.gpu=120m",
-      "--conf", "spark.yarn.driver.resource.gpu=121m",
-      "--conf", "spark.yarn.executor.resource.gpu=122m",
-      "--conf", "spark.yarn.am.resource.fpga=555m",
-      "--conf", "spark.yarn.driver.resource.fpga=556m",
-      "--conf", "spark.yarn.executor.resource.fpga=557m",
-      "thejar.jar",
-      "arg1", "arg2")
-    val appArgs = new SparkSubmitArguments(clArgs)
-    val (childArgs, classpath, conf, mainClass) = prepareSubmitEnvironment(appArgs)
-    childArgs.mkString(" ") should be ("arg1 arg2")
-    mainClass should be ("org.SomeClass")
-    classpath should have length 1
-    classpath(0) should endWith ("thejar.jar")
-    conf.get("spark.yarn.am.resource.gpu") should be ("120m")
-    conf.get("spark.yarn.driver.resource.gpu") should be ("121m")
-    conf.get("spark.yarn.executor.resource.gpu") should be ("122m")
-    conf.get("spark.yarn.am.resource.fpga") should be ("555m")
-    conf.get("spark.yarn.driver.resource.fpga") should be ("556m")
-    conf.get("spark.yarn.executor.resource.fpga") should be ("557m")
   }
 
   test("SPARK_CONF_DIR overrides spark-defaults.conf") {

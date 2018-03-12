@@ -150,6 +150,7 @@ private[spark] class Client(
    */
   def submitApplication(): ApplicationId = {
     logDebug(s"Driver resource types: $driverResourceTypes")
+    ResourceTypeValidator.validateResourceTypes(sparkConf)
 
     var appId: ApplicationId = null
     try {
