@@ -30,10 +30,17 @@ private[yarn] class ResourceTypeHelper {
 }
 
 object ResourceTypeHelper extends Logging {
-  def setResourceInfoFromResourceTypes(resourceTypes: Map[String, String],
+  def setResourceInfoFromResourceTypes(resourceTypesParam: Map[String, String],
                                        resource: Resource): Resource = {
     if (resource == null) {
       throw new IllegalArgumentException("Resource parameter should not be null!")
+    }
+
+    val resourceTypes = resourceTypesParam.map { case (k, v) => (
+      if (k.equals("memory")) {
+        logWarning("Trying to use memory as a custom resource, converted it to memory-mb")
+        "memory-mb"
+      } else k, v)
     }
 
     logDebug(s"Size of custom resource types: ${resourceTypes.size}")

@@ -242,6 +242,8 @@ class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
       .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "gpu", "122m")
       .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "fpga", "222m")
       .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "fpga", "223m")
+      .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "memory", "1G")
+      .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "memory", "2G")
     val args = new ClientArguments(Array())
 
     val appContext = Records.newRecord(classOf[ApplicationSubmissionContext])
@@ -269,6 +271,8 @@ class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
       .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "gpu", "122m")
       .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "fpga", "222m")
       .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "fpga", "223m")
+      .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "memory", "1G")
+      .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "memory", "2G")
       .set("spark.submit.deployMode", "cluster")
     val args = new ClientArguments(Array())
 

@@ -168,8 +168,10 @@ class YarnAllocatorSuite extends SparkFunSuite with Matchers with BeforeAndAfter
     TestYarnResourceTypeHelper.initializeResourceTypes(List("gpu"))
 
     // request a single container and receive it
-    val handler = createAllocatorWithAdditionalConfigs(1,
-      Map(YARN_EXECUTOR_RESOURCE_TYPES_PREFIX + "gpu" -> "2G"))
+    val handler = createAllocatorWithAdditionalConfigs(1, Map(
+      YARN_EXECUTOR_RESOURCE_TYPES_PREFIX + "gpu" -> "2G",
+      YARN_EXECUTOR_RESOURCE_TYPES_PREFIX + "memory" -> "1G"
+    ))
     handler.updateResourceRequests()
     handler.getNumExecutorsRunning should be (0)
     handler.getPendingAllocate.size should be (1)
