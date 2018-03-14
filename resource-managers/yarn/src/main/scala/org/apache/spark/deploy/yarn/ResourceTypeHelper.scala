@@ -111,10 +111,10 @@ object ResourceTypeHelper extends Logging {
   }
 
   /**
-    * Checks whether Hadoop 2.x or 3 is used as a dependency.
-    * In case of Hadoop 3 and later,
-    * the ResourceInformation class should be available on the classpath.
-    */
+   * Checks whether Hadoop 2.x or 3 is used as a dependency.
+   * In case of Hadoop 3 and later,
+   * the ResourceInformation class should be available on the classpath.
+   */
   def isYarnResourceTypesAvailable(): Boolean = {
     try {
       Utils.classForName("org.apache.hadoop.yarn.api.records.ResourceInformation")
