@@ -19,7 +19,6 @@ package org.apache.spark.deploy.yarn
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
-import scala.util.control.NonFatal
 
 import org.apache.hadoop.yarn.api.records.Resource
 import org.junit.Assert
@@ -29,7 +28,7 @@ import org.apache.spark.util.Utils
 
 object TestYarnResourceTypeHelper extends Logging {
   def initializeResourceTypes(resourceTypes: List[String]): Unit = {
-    if (!isYarnResourceTypesAvailable()) {
+    if (!ResourceTypeHelper.isYarnResourceTypesAvailable()) {
       throw new IllegalStateException("initializeResourceTypes() should not be invoked " +
         "since YARN resource types is not available because of old Hadoop version!" )
     }
@@ -83,7 +82,7 @@ object TestYarnResourceTypeHelper extends Logging {
   }
 
   private def getResourceInformation(res: Resource, name: String) = {
-    if (!isYarnResourceTypesAvailable()) {
+    if (!ResourceTypeHelper.isYarnResourceTypesAvailable()) {
       throw new IllegalStateException("assertResourceTypeValue() should not be invoked " +
         "since yarn resource types is not available because of old Hadoop version!")
     }
@@ -92,23 +91,6 @@ object TestYarnResourceTypeHelper extends Logging {
       classOf[String])
     val resourceInformation = getResourceInformationMethod.invoke(res, name)
     resourceInformation
-  }
-
-  /**
-   * Checks whether Hadoop 2.x or 3 is used as a dependency.
-   * In case of Hadoop 3 and later,
-   * the ResourceInformation class should be available on the classpath.
-   */
-  def isYarnResourceTypesAvailable(): Boolean = {
-    try {
-      Utils.classForName("org.apache.hadoop.yarn.api.records.ResourceInformation")
-      true
-    } catch {
-      case NonFatal(e) =>
-        logWarning(s"Ignoring updating resource with resource types because " +
-          s"the version of YARN does not support it", e)
-        false
-    }
   }
 
   private def invokeMethod(resourceInformation: AnyRef, methodName: String): AnyRef = {

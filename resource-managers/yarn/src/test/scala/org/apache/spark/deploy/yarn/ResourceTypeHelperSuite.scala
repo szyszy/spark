@@ -32,7 +32,7 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAnd
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    yarnResourceTypesAvailable = TestYarnResourceTypeHelper.isYarnResourceTypesAvailable()
+    yarnResourceTypesAvailable = ResourceTypeHelper.isYarnResourceTypesAvailable()
   }
 
   private def getExpectedUnmatchedErrorMessage(value: String) = {

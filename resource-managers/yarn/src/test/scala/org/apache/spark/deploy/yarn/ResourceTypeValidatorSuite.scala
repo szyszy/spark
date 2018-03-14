@@ -24,11 +24,8 @@ import org.apache.spark.{SparkConf, SparkException, SparkFunSuite}
 
 class ResourceTypeValidatorSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
 
-//  private var yarnResourceTypesAvailable = false
-
   override def beforeAll(): Unit = {
     super.beforeAll()
-//    yarnResourceTypesAvailable = TestYarnResourceTypeHelper.isYarnResourceTypesAvailable()
   }
 
   private def getExpectedErrorMessage(res1: String, res2: String) = {

@@ -51,7 +51,7 @@ class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    yarnResourceTypesAvailable = TestYarnResourceTypeHelper.isYarnResourceTypesAvailable()
+    yarnResourceTypesAvailable = ResourceTypeHelper.isYarnResourceTypesAvailable()
   }
 
   test("default Yarn application classpath") {

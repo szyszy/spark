@@ -30,15 +30,24 @@ private[yarn] class ResourceTypeHelper {
 }
 
 object ResourceTypeHelper extends Logging {
+  private val resourceTypesNotAvailableErrorMessage =
+    "Ignoring updating resource with resource types because " +
+    "the version of YARN does not support it!"
+
   def setResourceInfoFromResourceTypes(resourceTypesParam: Map[String, String],
                                        resource: Resource): Resource = {
     if (resource == null) {
       throw new IllegalArgumentException("Resource parameter should not be null!")
     }
 
+    if (!ResourceTypeHelper.isYarnResourceTypesAvailable()) {
+      logWarning(resourceTypesNotAvailableErrorMessage)
+      return resource
+    }
+
     val resourceTypes = resourceTypesParam.map { case (k, v) => (
       if (k.equals("memory")) {
-        logWarning("Trying to use memory as a custom resource, converted it to memory-mb")
+        logWarning("Trying to use 'memory' as a custom resource, converted it to 'memory-mb'")
         "memory-mb"
       } else k, v)
     }
@@ -67,8 +76,7 @@ object ResourceTypeHelper extends Logging {
             throw e.getCause
           }
         case NonFatal(e) =>
-          logWarning(s"Ignoring updating resource with resource types because " +
-            s"the version of YARN does not support it!", e)
+          logWarning(resourceTypesNotAvailableErrorMessage, e)
       }
     })
     resource
@@ -100,5 +108,21 @@ object ResourceTypeHelper extends Logging {
         resInfoNewInstanceMethod.invoke(null, resourceName, amount.asInstanceOf[AnyRef])
       }
     resourceInformation
+  }
+
+  /**
+    * Checks whether Hadoop 2.x or 3 is used as a dependency.
+    * In case of Hadoop 3 and later,
+    * the ResourceInformation class should be available on the classpath.
+    */
+  def isYarnResourceTypesAvailable(): Boolean = {
+    try {
+      Utils.classForName("org.apache.hadoop.yarn.api.records.ResourceInformation")
+      true
+    } catch {
+      case NonFatal(e) =>
+        logWarning(resourceTypesNotAvailableErrorMessage, e)
+        false
+    }
   }
 }
