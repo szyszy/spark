@@ -43,7 +43,7 @@ object TestYarnResourceTypeHelper extends Logging {
     allResourceTypes.++=(defaultResourceTypes)
     allResourceTypes.++=(customResourceTypes)
 
-    reinitalizeResources(allResourceTypes)
+    reinitializeResources(allResourceTypes)
   }
 
   private def createResourceTypeInfo(resourceName: String): AnyRef = {
@@ -52,13 +52,13 @@ object TestYarnResourceTypeHelper extends Logging {
     resTypeInfoNewInstanceMethod.invoke(null, resourceName)
   }
 
-  private def reinitalizeResources(resourceTypes: ListBuffer[AnyRef]): Unit = {
+  private def reinitializeResources(resourceTypes: ListBuffer[AnyRef]): Unit = {
     val resourceUtilsClass =
       Utils.classForName("org.apache.hadoop.yarn.util.resource.ResourceUtils")
-    val reinitalizeResourcesMethod = resourceUtilsClass.getMethod("reinitializeResources",
+    val reinitializeResourcesMethod = resourceUtilsClass.getMethod("reinitializeResources",
       classOf[java.util.List[AnyRef]])
     try {
-      reinitalizeResourcesMethod.invoke(null, resourceTypes.asJava)
+      reinitializeResourcesMethod.invoke(null, resourceTypes.asJava)
     } catch {
       case e: Exception =>
         e.printStackTrace()
