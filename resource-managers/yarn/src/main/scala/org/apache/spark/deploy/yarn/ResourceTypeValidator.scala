@@ -37,29 +37,29 @@ private [spark] object ResourceTypeValidator {
         new ResourceTypeConfigProperties(role = "executor", resourceType = "cores")))
   }
 
-  private def validateDuplicateResourceConfig(requestedResources: RequestedResources,
-                                              resourceTypeConfigProperties:
-                                              Seq[ResourceTypeConfigProperties]): Unit = {
+  private def validateDuplicateResourceConfig(
+      requestedResources: RequestedResources,
+      resourceTypeConfigProperties: Seq[ResourceTypeConfigProperties]): Unit = {
     val sb = new mutable.StringBuilder()
-    resourceTypeConfigProperties
-      .foreach(rtc => {
+    resourceTypeConfigProperties.foreach { rtc =>
         val errorMessage = validateDuplicateResourceConfigInternal(requestedResources, rtc)
         if (errorMessage.nonEmpty) {
           printErrorMessageToBuffer(sb, errorMessage)
         }
-      })
+      }
 
     if (sb.nonEmpty) {
       throw new SparkException(sb.toString())
     }
   }
 
-  private[spark] def printErrorMessageToBuffer(sb: StringBuilder, str: String) = {
+  private[spark] def printErrorMessageToBuffer(sb: StringBuilder, str: String): Unit = {
     sb.append(s"$ERROR_PREFIX$str\n")
   }
 
-  private def validateDuplicateResourceConfigInternal(requestedResources: RequestedResources,
-                                                      rtc: ResourceTypeConfigProperties): String = {
+  private def validateDuplicateResourceConfigInternal(
+      requestedResources: RequestedResources,
+      rtc: ResourceTypeConfigProperties): String = {
     val role = rtc.role
     val mode = rtc.mode
     val resourceType = rtc.resourceType
@@ -101,13 +101,17 @@ private [spark] object ResourceTypeValidator {
     ""
   }
 
-  private def formatDuplicateResourceTypeErrorMessage(standardResourceTypeId: String,
-                                                      customResourceTypeId: String): String = {
+  private def formatDuplicateResourceTypeErrorMessage(
+      standardResourceTypeId: String,
+      customResourceTypeId: String): String = {
     s"$standardResourceTypeId and $customResourceTypeId" +
       " configs are both present, only one of them is allowed at the same time!"
   }
 
-  private def getResourceTypeIdsByRole(role: String, mode: String, resourceType: String) = {
+  private def getResourceTypeIdsByRole(
+      role: String,
+      mode: String,
+      resourceType: String): (String, String) = {
     val standardResourceTypeId: String = s"spark.$role.$resourceType"
 
     var customResourceTypeId: String = ""
@@ -122,9 +126,10 @@ private [spark] object ResourceTypeValidator {
     (standardResourceTypeId, customResourceTypeId)
   }
 
-  private class ResourceTypeConfigProperties(val role: String,
-                                             val mode: String = "",
-                                             val resourceType: String)
+  private class ResourceTypeConfigProperties(
+      val role: String,
+      val mode: String = "",
+      val resourceType: String)
 
 
   private class RequestedResources(val sparkConf: SparkConf) {
@@ -139,13 +144,14 @@ private [spark] object ResourceTypeValidator {
     val customResourceTypesForExecutor: Map[String, String] =
       extractCustomResourceTypes(sparkConf, "spark.yarn.executor.resource.")
 
-    private def extractCustomResourceTypes(sparkConf: SparkConf,
-                                           propertyPrefix: String): Map[String, String] = {
+    private def extractCustomResourceTypes(
+        sparkConf: SparkConf,
+        propertyPrefix: String): Map[String, String] = {
       val result: collection.mutable.HashMap[String, String] =
         new collection.mutable.HashMap[String, String]()
 
       val propertiesWithPrefix: Array[(String, String)] = sparkConf.getAllWithPrefix(propertyPrefix)
-      propertiesWithPrefix.foreach(e => result.put(propertyPrefix + e._1, e._2))
+      propertiesWithPrefix.foreach { case (k, v) => result.put(propertyPrefix + k, v) }
 
       result.toMap
     }

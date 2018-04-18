@@ -142,7 +142,7 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAnd
     customResource2.units should be ("G")
   }
 
-  private def createAResource = {
+  private def createAResource: Resource = {
     val resource = Records.newRecord(classOf[Resource])
     resource.setMemory(512)
     resource.setVirtualCores(2)

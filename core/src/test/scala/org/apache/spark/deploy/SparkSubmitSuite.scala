@@ -255,6 +255,33 @@ class SparkSubmitSuite
     sys.props("SPARK_SUBMIT") should be ("true")
   }
 
+  test("handles custom resource types") {
+    val clArgs = Seq(
+      "--deploy-mode", "client",
+      "--master", "yarn",
+      "--class", "org.SomeClass",
+      "--conf", "spark.yarn.am.resource.gpu=120m",
+      "--conf", "spark.yarn.driver.resource.gpu=121m",
+      "--conf", "spark.yarn.executor.resource.gpu=122m",
+      "--conf", "spark.yarn.am.resource.fpga=555m",
+      "--conf", "spark.yarn.driver.resource.fpga=556m",
+      "--conf", "spark.yarn.executor.resource.fpga=557m",
+      "thejar.jar",
+      "arg1", "arg2")
+    val appArgs = new SparkSubmitArguments(clArgs)
+    val (childArgs, classpath, conf, mainClass) = prepareSubmitEnvironment(appArgs)
+    childArgs.mkString(" ") should be ("arg1 arg2")
+    mainClass should be ("org.SomeClass")
+    classpath should have length 1
+    classpath(0) should endWith ("thejar.jar")
+    conf.get("spark.yarn.am.resource.gpu") should be ("120m")
+    conf.get("spark.yarn.driver.resource.gpu") should be ("121m")
+    conf.get("spark.yarn.executor.resource.gpu") should be ("122m")
+    conf.get("spark.yarn.am.resource.fpga") should be ("555m")
+    conf.get("spark.yarn.driver.resource.fpga") should be ("556m")
+    conf.get("spark.yarn.executor.resource.fpga") should be ("557m")
+  }
+
   test("handles YARN client mode") {
     val clArgs = Seq(
       "--deploy-mode", "client",

@@ -91,15 +91,17 @@ class YarnAllocatorSuite extends SparkFunSuite with Matchers with BeforeAndAfter
     createAllocatorInternal(maxExecutors, rmClient, Map())
   }
 
-  def createAllocatorWithAdditionalConfigs(maxExecutors: Int = 5,
-                                           additionalConfigs: Map[String, String],
-                                           rmClient: AMRMClient[ContainerRequest] = rmClient):
-  YarnAllocator = {
+  def createAllocatorWithAdditionalConfigs(
+      maxExecutors: Int = 5,
+      additionalConfigs: Map[String, String],
+      rmClient: AMRMClient[ContainerRequest] = rmClient): YarnAllocator = {
     createAllocatorInternal(maxExecutors, rmClient, additionalConfigs)
   }
 
-  private def createAllocatorInternal(maxExecutors: Int, rmClient: AMRMClient[ContainerRequest],
-                                      additionalConfigs: Map[String, String]) = {
+  private def createAllocatorInternal(
+      maxExecutors: Int,
+      rmClient: AMRMClient[ContainerRequest],
+      additionalConfigs: Map[String, String]) = {
     val args = Array(
       "--jar", "somejar.jar",
       "--class", "SomeClass")

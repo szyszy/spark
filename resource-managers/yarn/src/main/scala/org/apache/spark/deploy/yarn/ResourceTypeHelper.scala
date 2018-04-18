@@ -31,8 +31,9 @@ object ResourceTypeHelper extends Logging {
     "Ignoring updating resource with resource types because " +
     "the version of YARN does not support it!"
 
-  def setResourceInfoFromResourceTypes(resourceTypesParam: Map[String, String],
-                                       resource: Resource): Resource = {
+  def setResourceInfoFromResourceTypes(
+      resourceTypesParam: Map[String, String],
+      resource: Resource): Resource = {
     if (resource == null) {
       throw new IllegalArgumentException("Resource parameter should not be null!")
     }
@@ -50,7 +51,7 @@ object ResourceTypeHelper extends Logging {
     }
 
     logDebug(s"Custom resource types: $resourceTypes")
-    resourceTypes.foreach(rt => {
+    resourceTypes.foreach { rt =>
       val resourceName: String = rt._1
       val (amount, unit) = getAmountAndUnit(rt._2)
       logDebug(s"Registering resource with name: $resourceName, amount: $amount, unit: $unit")
@@ -58,8 +59,8 @@ object ResourceTypeHelper extends Logging {
       // These yarn client methods were added in Hadoop 3, so we still need to use reflection to
       // avoid compile error when building against Hadoop 2.x
       try {
-        val resInfoClass = Utils.
-          classForName("org.apache.hadoop.yarn.api.records.ResourceInformation")
+        val resInfoClass = Utils.classForName(
+          "org.apache.hadoop.yarn.api.records.ResourceInformation")
         val setResourceInformationMethod =
           resource.getClass.getMethod("setResourceInformation", classOf[String],
             resInfoClass)
@@ -75,7 +76,7 @@ object ResourceTypeHelper extends Logging {
         case NonFatal(e) =>
           logWarning(resourceTypesNotAvailableErrorMessage, e)
       }
-    })
+    }
     resource
   }
 
@@ -90,10 +91,11 @@ object ResourceTypeHelper extends Logging {
     }
   }
 
-  private def createResourceInformation(resourceName: String,
-                                        amount: Long,
-                                        unit: String,
-                                        resInfoClass: Class[_]) = {
+  private def createResourceInformation(
+      resourceName: String,
+      amount: Long,
+      unit: String,
+      resInfoClass: Class[_]) = {
     val resourceInformation =
       if (unit.nonEmpty) {
         val resInfoNewInstanceMethod = resInfoClass.getMethod("newInstance",

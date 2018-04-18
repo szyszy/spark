@@ -28,7 +28,7 @@ class ResourceTypeValidatorSuite extends SparkFunSuite with Matchers with Before
     super.beforeAll()
   }
 
-  private def getExpectedErrorMessage(res1: String, res2: String) = {
+  private def getExpectedErrorMessage(res1: String, res2: String): String = {
     s"Error: $res1 and $res2 configs are both present, " +
       s"only one of them is allowed at the same time!"
   }
