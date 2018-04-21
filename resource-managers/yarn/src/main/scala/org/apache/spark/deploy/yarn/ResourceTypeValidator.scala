@@ -20,6 +20,8 @@ package org.apache.spark.deploy.yarn
 import scala.collection.mutable
 
 import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.deploy.yarn.config._
+import org.apache.spark.internal.config._
 
 private [spark] object ResourceTypeValidator {
   private val ERROR_PREFIX: String = "Error: "
@@ -133,10 +135,10 @@ private [spark] object ResourceTypeValidator {
 
 
   private class RequestedResources(val sparkConf: SparkConf) {
-    val driverMemory: String = safelyGetFromSparkConf(sparkConf, "spark.driver.memory")
-    val driverCores: String = safelyGetFromSparkConf(sparkConf, "spark.driver.cores")
-    val executorMemory: String = safelyGetFromSparkConf(sparkConf, "spark.executor.memory")
-    val executorCores: String = safelyGetFromSparkConf(sparkConf, "spark.executor.cores")
+    val driverMemory: String = sparkConf.getOption(DRIVER_MEMORY.key).orNull
+    val driverCores: String = sparkConf.getOption(DRIVER_CORES.key).orNull
+    val executorMemory: String = sparkConf.getOption(EXECUTOR_MEMORY.key).orNull
+    val executorCores: String = sparkConf.getOption(EXECUTOR_CORES.key).orNull
     val customResourceTypesForDriverClientMode: Map[String, String] =
       extractCustomResourceTypes(sparkConf, "spark.yarn.am.resource.")
     val customResourceTypesForDriverClusterMode: Map[String, String] =
@@ -154,14 +156,6 @@ private [spark] object ResourceTypeValidator {
       propertiesWithPrefix.foreach { case (k, v) => result.put(propertyPrefix + k, v) }
 
       result.toMap
-    }
-
-    private def safelyGetFromSparkConf(sparkConf: SparkConf, key: String): String = {
-      try {
-        sparkConf.get(key)
-      } catch {
-        case _: Exception => null
-      }
     }
   }
 
