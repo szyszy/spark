@@ -30,12 +30,12 @@ class ResourceTypeValidatorSuite extends SparkFunSuite with Matchers with Before
 
   private def getExpectedErrorMessage(res1: String, res2: String): String = {
     s"Error: $res1 and $res2 configs are both present, " +
-      s"only one of them is allowed at the same time!"
+      s"just $res1 should be used!"
   }
 
   test("empty SparkConf should be valid") {
     val sparkConf = new SparkConf()
-    ResourceTypeValidator.validateResourceTypes(sparkConf)
+    ResourceTypeValidator.validateResources(sparkConf)
   }
 
   test("just executor memory / cores and driver memory / cores are defined") {
@@ -45,7 +45,7 @@ class ResourceTypeValidatorSuite extends SparkFunSuite with Matchers with Before
     sparkConf.set("spark.executor.memory", "4G")
     sparkConf.set("spark.executor.cores", "2")
 
-    ResourceTypeValidator.validateResourceTypes(sparkConf)
+    ResourceTypeValidator.validateResources(sparkConf)
   }
 
 
@@ -59,7 +59,7 @@ class ResourceTypeValidatorSuite extends SparkFunSuite with Matchers with Before
     sparkConf.set("spark.yarn.executor.resource.memory", "30G")
 
     val thrown = intercept[SparkException] {
-      ResourceTypeValidator.validateResourceTypes(sparkConf)
+      ResourceTypeValidator.validateResources(sparkConf)
     }
     thrown.getMessage should startWith (getExpectedErrorMessage("spark.executor.memory",
       "spark.yarn.executor.resource.memory"))
@@ -75,25 +75,25 @@ class ResourceTypeValidatorSuite extends SparkFunSuite with Matchers with Before
     sparkConf.set("spark.yarn.executor.resource.cores", "5")
 
     val thrown = intercept[SparkException] {
-      ResourceTypeValidator.validateResourceTypes(sparkConf)
+      ResourceTypeValidator.validateResources(sparkConf)
     }
     thrown.getMessage should startWith (getExpectedErrorMessage("spark.executor.cores",
       "spark.yarn.executor.resource.cores"))
   }
 
-  test("test validation of resource types: Memory defined two ways for driver, client mode") {
+  test("test validation of resource types: Memory defined two ways, client mode") {
     val sparkConf = new SparkConf()
     sparkConf.set("spark.driver.memory", "2G")
     sparkConf.set("spark.driver.cores", "4")
-    sparkConf.set("spark.executor.memory", "4G")
+    sparkConf.set("spark.yarn.am.memory", "4G")
     sparkConf.set("spark.executor.cores", "2")
 
     sparkConf.set("spark.yarn.am.resource.memory", "1G")
 
     val thrown = intercept[SparkException] {
-      ResourceTypeValidator.validateResourceTypes(sparkConf)
+      ResourceTypeValidator.validateResources(sparkConf)
     }
-    thrown.getMessage should startWith (getExpectedErrorMessage("spark.driver.memory",
+    thrown.getMessage should startWith (getExpectedErrorMessage("spark.yarn.am.memory",
       "spark.yarn.am.resource.memory"))
   }
 
@@ -107,25 +107,25 @@ class ResourceTypeValidatorSuite extends SparkFunSuite with Matchers with Before
     sparkConf.set("spark.yarn.driver.resource.memory", "1G")
 
     val thrown = intercept[SparkException] {
-      ResourceTypeValidator.validateResourceTypes(sparkConf)
+      ResourceTypeValidator.validateResources(sparkConf)
     }
     thrown.getMessage should startWith (getExpectedErrorMessage("spark.driver.memory",
       "spark.yarn.driver.resource.memory"))
   }
 
-  test("test validation of resource types: Cores defined two ways for driver, client mode") {
+  test("test validation of resource types: Cores defined two ways, client mode") {
     val sparkConf = new SparkConf()
     sparkConf.set("spark.driver.memory", "2G")
     sparkConf.set("spark.driver.cores", "4")
     sparkConf.set("spark.executor.memory", "4G")
-    sparkConf.set("spark.executor.cores", "2")
+    sparkConf.set("spark.yarn.am.cores", "2")
 
     sparkConf.set("spark.yarn.am.resource.cores", "3")
 
     val thrown = intercept[SparkException] {
-      ResourceTypeValidator.validateResourceTypes(sparkConf)
+      ResourceTypeValidator.validateResources(sparkConf)
     }
-    thrown.getMessage should startWith (getExpectedErrorMessage("spark.driver.cores",
+    thrown.getMessage should startWith (getExpectedErrorMessage("spark.yarn.am.cores",
       "spark.yarn.am.resource.cores"))
   }
 
@@ -139,7 +139,7 @@ class ResourceTypeValidatorSuite extends SparkFunSuite with Matchers with Before
     sparkConf.set("spark.yarn.driver.resource.cores", "1G")
 
     val thrown = intercept[SparkException] {
-      ResourceTypeValidator.validateResourceTypes(sparkConf)
+      ResourceTypeValidator.validateResources(sparkConf)
     }
     thrown.getMessage should startWith (getExpectedErrorMessage("spark.driver.cores",
       "spark.yarn.driver.resource.cores"))
@@ -148,8 +148,9 @@ class ResourceTypeValidatorSuite extends SparkFunSuite with Matchers with Before
   test("test validation of resource types: various duplicated definitions") {
     val sparkConf = new SparkConf()
     sparkConf.set("spark.driver.memory", "2G")
-    sparkConf.set("spark.driver.cores", "2")
     sparkConf.set("spark.executor.memory", "2G")
+    sparkConf.set("spark.yarn.am.memory", "3G")
+    sparkConf.set("spark.driver.cores", "2")
     sparkConf.set("spark.executor.cores", "4")
 
     sparkConf.set("spark.yarn.executor.resource.memory", "3G")
@@ -157,12 +158,12 @@ class ResourceTypeValidatorSuite extends SparkFunSuite with Matchers with Before
     sparkConf.set("spark.yarn.driver.resource.memory", "2G")
 
     val thrown = intercept[SparkException] {
-      ResourceTypeValidator.validateResourceTypes(sparkConf)
+      ResourceTypeValidator.validateResources(sparkConf)
     }
     thrown.getMessage should (
       include(getExpectedErrorMessage("spark.executor.memory",
         "spark.yarn.executor.resource.memory")) and
-        include(getExpectedErrorMessage("spark.driver.memory",
+        include(getExpectedErrorMessage("spark.yarn.am.memory",
           "spark.yarn.am.resource.memory")) and
         include(getExpectedErrorMessage("spark.driver.memory",
           "spark.yarn.driver.resource.memory"))

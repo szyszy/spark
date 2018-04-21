@@ -88,9 +88,9 @@ private[spark] class Client(
 
   private val driverResourceTypes: collection.immutable.Map[String, String] =
     if (isClusterMode) {
-      sparkConf.getAllWithPrefix(config.YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX).toMap
+      sparkConf.getAllWithPrefix(config.YARN_DRIVER_RESOURCE_TYPES_PREFIX).toMap
     } else {
-      sparkConf.getAllWithPrefix(config.YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX).toMap
+      sparkConf.getAllWithPrefix(config.YARN_AM_RESOURCE_TYPES_PREFIX).toMap
     }
 
   // Executor related configurations
@@ -150,7 +150,7 @@ private[spark] class Client(
    */
   def submitApplication(): ApplicationId = {
     logDebug(s"Driver resource types: $driverResourceTypes")
-    ResourceTypeValidator.validateResourceTypes(sparkConf)
+    ResourceTypeValidator.validateResources(sparkConf)
 
     var appId: ApplicationId = null
     try {

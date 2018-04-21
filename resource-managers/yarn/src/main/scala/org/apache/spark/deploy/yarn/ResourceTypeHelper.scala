@@ -28,7 +28,6 @@ import org.apache.spark.util.Utils
 
 object ResourceTypeHelper extends Logging {
   private val AMOUNT_AND_UNIT_REGEX = "([0-9]+)([A-Za-z]*)".r
-  
   private val resourceTypesNotAvailableErrorMessage =
     "Ignoring updating resource with resource types because " +
     "the version of YARN does not support it!"

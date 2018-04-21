@@ -207,7 +207,7 @@ class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
   test("Resource type args propagate, resource type not defined") {
     assume(ResourceTypeHelper.isYarnResourceTypesAvailable())
     val sparkConf = new SparkConf()
-      .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "gpu", "121m")
+      .set(YARN_AM_RESOURCE_TYPES_PREFIX + "gpu", "121m")
     val args = new ClientArguments(Array())
 
     val appContext = Records.newRecord(classOf[ApplicationSubmissionContext])
@@ -234,12 +234,12 @@ class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
     TestYarnResourceTypeHelper.initializeResourceTypes(List("gpu", "fpga"))
 
     val sparkConf = new SparkConf()
-      .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "gpu", "121m")
-      .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "gpu", "122m")
-      .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "fpga", "222m")
-      .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "fpga", "223m")
-      .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "memory", "1G")
-      .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "memory", "2G")
+      .set(YARN_AM_RESOURCE_TYPES_PREFIX + "gpu", "121m")
+      .set(YARN_DRIVER_RESOURCE_TYPES_PREFIX + "gpu", "122m")
+      .set(YARN_AM_RESOURCE_TYPES_PREFIX + "fpga", "222m")
+      .set(YARN_DRIVER_RESOURCE_TYPES_PREFIX + "fpga", "223m")
+      .set(YARN_AM_RESOURCE_TYPES_PREFIX + "memory", "1G")
+      .set(YARN_DRIVER_RESOURCE_TYPES_PREFIX + "memory", "2G")
     val args = new ClientArguments(Array())
 
     val appContext = Records.newRecord(classOf[ApplicationSubmissionContext])
@@ -262,12 +262,12 @@ class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
     TestYarnResourceTypeHelper.initializeResourceTypes(List("gpu", "fpga"))
 
     val sparkConf = new SparkConf()
-      .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "gpu", "121m")
-      .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "gpu", "122m")
-      .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "fpga", "222m")
-      .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "fpga", "223m")
-      .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "memory", "1G")
-      .set(YARN_DRIVER_RESOURCE_TYPES_CLUSTER_PREFIX + "memory", "2G")
+      .set(YARN_AM_RESOURCE_TYPES_PREFIX + "gpu", "121m")
+      .set(YARN_DRIVER_RESOURCE_TYPES_PREFIX + "gpu", "122m")
+      .set(YARN_AM_RESOURCE_TYPES_PREFIX + "fpga", "222m")
+      .set(YARN_DRIVER_RESOURCE_TYPES_PREFIX + "fpga", "223m")
+      .set(YARN_AM_RESOURCE_TYPES_PREFIX + "memory", "1G")
+      .set(YARN_DRIVER_RESOURCE_TYPES_PREFIX + "memory", "2G")
       .set("spark.submit.deployMode", "cluster")
     val args = new ClientArguments(Array())
 
