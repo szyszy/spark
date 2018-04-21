@@ -61,11 +61,8 @@ class YarnAllocatorSuite extends SparkFunSuite with Matchers with BeforeAndAfter
 
   var containerNum = 0
 
-  private var yarnResourceTypesAvailable = false
-
   override def beforeAll(): Unit = {
     super.beforeAll()
-    yarnResourceTypesAvailable = ResourceTypeHelper.isYarnResourceTypesAvailable()
   }
 
   override def beforeEach() {
@@ -164,7 +161,7 @@ class YarnAllocatorSuite extends SparkFunSuite with Matchers with BeforeAndAfter
   }
 
   test("custom resource type requested from yarn") {
-    assume(yarnResourceTypesAvailable)
+    assume(ResourceTypeHelper.isYarnResourceTypesAvailable())
     TestYarnResourceTypeHelper.initializeResourceTypes(List("gpu"))
 
     // request a single container and receive it

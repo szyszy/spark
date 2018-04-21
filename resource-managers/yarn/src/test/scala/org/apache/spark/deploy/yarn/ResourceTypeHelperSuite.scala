@@ -28,11 +28,9 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAnd
 
   private val CUSTOM_RES_1 = "custom-resource-type-1"
   private val CUSTOM_RES_2 = "custom-resource-type-2"
-  private var yarnResourceTypesAvailable = false
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    yarnResourceTypesAvailable = ResourceTypeHelper.isYarnResourceTypesAvailable()
   }
 
   private def getExpectedUnmatchedErrorMessage(value: String) = {
@@ -41,7 +39,7 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAnd
   }
 
   test("resource type value does not match pattern") {
-    assume(yarnResourceTypesAvailable)
+    assume(ResourceTypeHelper.isYarnResourceTypesAvailable())
     TestYarnResourceTypeHelper.initializeResourceTypes(List())
 
     val resourceTypes = Map(CUSTOM_RES_1 -> "**@#")
@@ -53,7 +51,7 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAnd
   }
 
   test("resource type just unit defined") {
-    assume(yarnResourceTypesAvailable)
+    assume(ResourceTypeHelper.isYarnResourceTypesAvailable())
     TestYarnResourceTypeHelper.initializeResourceTypes(List())
 
     val resourceTypes = Map(CUSTOM_RES_1 -> "m")
@@ -65,7 +63,7 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAnd
   }
 
   test("resource type with null value should not be allowed") {
-    assume(yarnResourceTypesAvailable)
+    assume(ResourceTypeHelper.isYarnResourceTypesAvailable())
     TestYarnResourceTypeHelper.initializeResourceTypes(List())
 
     val resourceTypes = Map(CUSTOM_RES_1 -> "123")
@@ -77,7 +75,7 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAnd
   }
 
   test("resource type with valid value and invalid unit") {
-    assume(yarnResourceTypesAvailable)
+    assume(ResourceTypeHelper.isYarnResourceTypesAvailable())
     TestYarnResourceTypeHelper.initializeResourceTypes(List(CUSTOM_RES_1))
 
     val resourceTypes = Map(CUSTOM_RES_1 -> "123ppp")
@@ -91,7 +89,7 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAnd
   }
 
   test("resource type with valid value and without unit") {
-    assume(yarnResourceTypesAvailable)
+    assume(ResourceTypeHelper.isYarnResourceTypesAvailable())
     TestYarnResourceTypeHelper.initializeResourceTypes(List(CUSTOM_RES_1))
 
     val resourceTypes = Map(CUSTOM_RES_1 -> "123")
@@ -106,7 +104,7 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAnd
   }
 
   test("resource type with valid value and unit") {
-    assume(yarnResourceTypesAvailable)
+    assume(ResourceTypeHelper.isYarnResourceTypesAvailable())
     TestYarnResourceTypeHelper.initializeResourceTypes(List(CUSTOM_RES_1))
 
     val resourceTypes = Map(CUSTOM_RES_1 -> "123m")
@@ -121,7 +119,7 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAnd
   }
 
   test("two resource types with valid values and units") {
-    assume(yarnResourceTypesAvailable)
+    assume(ResourceTypeHelper.isYarnResourceTypesAvailable())
     TestYarnResourceTypeHelper.initializeResourceTypes(List(CUSTOM_RES_1, CUSTOM_RES_2))
 
     val resourceTypes = Map(

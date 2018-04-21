@@ -47,11 +47,9 @@ class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
   import Client._
 
   var oldSystemProperties: Properties = null
-  private var yarnResourceTypesAvailable = false
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    yarnResourceTypesAvailable = ResourceTypeHelper.isYarnResourceTypesAvailable()
   }
 
   test("default Yarn application classpath") {
@@ -206,9 +204,8 @@ class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
     appContext.getMaxAppAttempts should be (42)
   }
 
-  test("configuration and resource type args propagate " +
-    "through createApplicationSubmissionContext, resource type not defined") {
-    assume(yarnResourceTypesAvailable)
+  test("Resource type args propagate, resource type not defined") {
+    assume(ResourceTypeHelper.isYarnResourceTypesAvailable())
     val sparkConf = new SparkConf()
       .set(YARN_DRIVER_RESOURCE_TYPES_CLIENT_PREFIX + "gpu", "121m")
     val args = new ClientArguments(Array())
@@ -232,9 +229,8 @@ class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
     }
   }
 
-  test("configuration and resource type args propagate " +
-    "through createApplicationSubmissionContext (client mode)") {
-    assume(yarnResourceTypesAvailable)
+  test("Resource type args propagate (client mode)") {
+    assume(ResourceTypeHelper.isYarnResourceTypesAvailable())
     TestYarnResourceTypeHelper.initializeResourceTypes(List("gpu", "fpga"))
 
     val sparkConf = new SparkConf()
@@ -261,9 +257,8 @@ class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
     TestYarnResourceTypeHelper.getResourceTypeValue(appContext.getResource, "fpga") should be (222)
   }
 
-  test("configuration and resource type args propagate " +
-    "through createApplicationSubmissionContext (cluster mode)") {
-    assume(yarnResourceTypesAvailable)
+  test("configuration and resource type args propagate (cluster mode)") {
+    assume(ResourceTypeHelper.isYarnResourceTypesAvailable())
     TestYarnResourceTypeHelper.initializeResourceTypes(List("gpu", "fpga"))
 
     val sparkConf = new SparkConf()

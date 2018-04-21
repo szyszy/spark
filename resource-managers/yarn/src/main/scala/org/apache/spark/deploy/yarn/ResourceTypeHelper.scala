@@ -26,9 +26,6 @@ import org.apache.hadoop.yarn.api.records.Resource
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
 
-private[yarn] class ResourceTypeHelper {
-}
-
 object ResourceTypeHelper extends Logging {
   private val resourceTypesNotAvailableErrorMessage =
     "Ignoring updating resource with resource types because " +
@@ -52,7 +49,7 @@ object ResourceTypeHelper extends Logging {
       } else k, v)
     }
 
-    logDebug(s"Size of custom resource types: ${resourceTypes.size}")
+    logDebug(s"Custom resource types: $resourceTypes")
     resourceTypes.foreach(rt => {
       val resourceName: String = rt._1
       val (amount, unit) = getAmountAndUnit(rt._2)
@@ -98,7 +95,7 @@ object ResourceTypeHelper extends Logging {
                                         unit: String,
                                         resInfoClass: Class[_]) = {
     val resourceInformation =
-      if (unit.length > 0) {
+      if (unit.nonEmpty) {
         val resInfoNewInstanceMethod = resInfoClass.getMethod("newInstance",
           classOf[String], classOf[String], classOf[Long])
         resInfoNewInstanceMethod.invoke(null, resourceName, unit, amount.asInstanceOf[AnyRef])

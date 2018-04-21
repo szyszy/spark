@@ -21,11 +21,11 @@ import scala.collection.mutable
 
 import org.apache.spark.{SparkConf, SparkException}
 
-object ResourceTypeValidator {
+private [spark] object ResourceTypeValidator {
   private val ERROR_PREFIX: String = "Error: "
 
   def validateResourceTypes(sparkConf: SparkConf): Unit = {
-    val requestedResources: RequestedResources = new RequestedResources(sparkConf)
+    val requestedResources = new RequestedResources(sparkConf)
 
     validateDuplicateResourceConfig(requestedResources,
       Seq[ResourceTypeConfigProperties](
