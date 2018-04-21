@@ -27,6 +27,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
 
 object ResourceTypeHelper extends Logging {
+  private val AMOUNT_AND_UNIT_REGEX = "([0-9]+)([A-Za-z]*)".r
+  
   private val resourceTypesNotAvailableErrorMessage =
     "Ignoring updating resource with resource types because " +
     "the version of YARN does not support it!"
@@ -65,7 +67,7 @@ object ResourceTypeHelper extends Logging {
           resource.getClass.getMethod("setResourceInformation", classOf[String],
             resInfoClass)
 
-        val resourceInformation: AnyRef =
+        val resourceInformation =
           createResourceInformation(resourceName, amount, unit, resInfoClass)
         setResourceInformationMethod.invoke(resource, resourceName, resourceInformation)
       } catch {
@@ -81,13 +83,12 @@ object ResourceTypeHelper extends Logging {
   }
 
   def getAmountAndUnit(s: String): (Long, String) = {
-    val pattern = "([0-9]+)([A-Za-z]*)".r
     try {
-      val pattern(amount, unit) = s
+      val AMOUNT_AND_UNIT_REGEX(amount, unit) = s
       (amount.toLong, unit)
     } catch {
       case _: MatchError => throw new IllegalArgumentException(
-        s"Value of resource type should match pattern $pattern, unmatched value: $s")
+        s"Value of resource type should match pattern $AMOUNT_AND_UNIT_REGEX, unmatched value: $s")
     }
   }
 
