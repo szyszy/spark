@@ -17,7 +17,7 @@
 
 package org.apache.spark.deploy.yarn
 
-import java.io.{FileSystem => _, _}
+import java.io.{File, FileOutputStream, IOException, OutputStreamWriter, _}
 import java.net.{InetAddress, UnknownHostException, URI}
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
@@ -86,6 +86,13 @@ private[spark] class Client(
     sparkConf.get(AM_CORES)
   }
 
+  private val driverResourceTypes: collection.immutable.Map[String, String] =
+    if (isClusterMode) {
+      sparkConf.getAllWithPrefix(config.YARN_DRIVER_RESOURCE_TYPES_PREFIX).toMap
+    } else {
+      sparkConf.getAllWithPrefix(config.YARN_AM_RESOURCE_TYPES_PREFIX).toMap
+    }
+
   // Executor related configurations
   private val executorMemory = sparkConf.get(EXECUTOR_MEMORY)
   private val executorMemoryOverhead = sparkConf.get(EXECUTOR_MEMORY_OVERHEAD).getOrElse(
@@ -147,6 +154,9 @@ private[spark] class Client(
    * available in the alpha API.
    */
   def submitApplication(): ApplicationId = {
+    logDebug(s"Driver resource types: $driverResourceTypes")
+    ResourceTypeValidator.validateResources(sparkConf)
+
     var appId: ApplicationId = null
     try {
       launcherBackend.connect()
@@ -249,6 +259,8 @@ private[spark] class Client(
     val capability = Records.newRecord(classOf[Resource])
     capability.setMemory(amMemory + amMemoryOverhead)
     capability.setVirtualCores(amCores)
+    ResourceTypeHelper.setResourceInfoFromResourceTypes(driverResourceTypes, capability)
+    logDebug("Created resource capability for AM request: %s".format(capability.toString))
 
     sparkConf.get(AM_NODE_LABEL_EXPRESSION) match {
       case Some(expr) =>
