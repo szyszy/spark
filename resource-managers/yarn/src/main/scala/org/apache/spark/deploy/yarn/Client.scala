@@ -86,7 +86,7 @@ private[spark] class Client(
     sparkConf.get(AM_CORES)
   }
 
-  private val driverResourceTypes: collection.immutable.Map[String, String] =
+  private val amResources: collection.immutable.Map[String, String] =
     if (isClusterMode) {
       sparkConf.getAllWithPrefix(config.YARN_DRIVER_RESOURCE_TYPES_PREFIX).toMap
     } else {
@@ -154,7 +154,7 @@ private[spark] class Client(
    * available in the alpha API.
    */
   def submitApplication(): ApplicationId = {
-    logDebug(s"Driver resource types: $driverResourceTypes")
+    logDebug(s"AM resources: $amResources")
     ResourceTypeValidator.validateResources(sparkConf)
 
     var appId: ApplicationId = null
@@ -259,7 +259,9 @@ private[spark] class Client(
     val capability = Records.newRecord(classOf[Resource])
     capability.setMemory(amMemory + amMemoryOverhead)
     capability.setVirtualCores(amCores)
-    ResourceTypeHelper.setResourceInfoFromResourceTypes(driverResourceTypes, capability)
+    if (amResources.nonEmpty) {
+      ResourceTypeHelper.setResourceInfoFromResourceTypes(amResources, capability)
+    }
     logDebug("Created resource capability for AM request: %s".format(capability.toString))
 
     sparkConf.get(AM_NODE_LABEL_EXPRESSION) match {

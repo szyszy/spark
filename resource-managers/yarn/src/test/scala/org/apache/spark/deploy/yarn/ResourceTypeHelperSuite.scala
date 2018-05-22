@@ -40,7 +40,7 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAnd
 
   test("resource type value does not match pattern") {
     assume(ResourceTypeHelper.isYarnResourceTypesAvailable())
-    TestYarnResourceTypeHelper.initializeResourceTypes(List())
+    TestYarnResourceTypeHelper.initializeResourceTypes(List(CUSTOM_RES_1))
 
     val resourceTypes = Map(CUSTOM_RES_1 -> "**@#")
 
@@ -71,7 +71,7 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAnd
     val thrown = intercept[IllegalArgumentException] {
       ResourceTypeHelper.setResourceInfoFromResourceTypes(resourceTypes, null)
     }
-    thrown.getMessage should equal ("Resource parameter should not be null!")
+    thrown.getMessage should equal ("requirement failed: Resource parameter should not be null!")
   }
 
   test("resource type with valid value and invalid unit") {
@@ -133,7 +133,7 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAnd
       .getResourceInformationByName(resource, CUSTOM_RES_1)
     customResource1.name should equal (CUSTOM_RES_1)
     customResource1.value should be (123)
-    customResource1.units should be ("m")
+    customResource1.units should be ("M")
 
     val customResource2: ResourceInformation = TestYarnResourceTypeHelper
       .getResourceInformationByName(resource, CUSTOM_RES_2)

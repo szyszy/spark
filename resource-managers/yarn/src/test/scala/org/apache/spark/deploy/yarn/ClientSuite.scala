@@ -207,7 +207,7 @@ class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
   test("Resource type args propagate, resource type not defined") {
     assume(ResourceTypeHelper.isYarnResourceTypesAvailable())
     val sparkConf = new SparkConf()
-      .set(YARN_AM_RESOURCE_TYPES_PREFIX + "gpu", "121m")
+      .set(YARN_AM_RESOURCE_TYPES_PREFIX + "some_resource_with_units_1", "121m")
     val args = new ClientArguments(Array())
 
     val appContext = Records.newRecord(classOf[ApplicationSubmissionContext])
@@ -234,8 +234,8 @@ class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
     TestYarnResourceTypeHelper.initializeResourceTypes(List("gpu", "fpga"))
 
     val sparkConf = new SparkConf()
-      .set(YARN_AM_RESOURCE_TYPES_PREFIX + "gpu", "121m")
-      .set(YARN_DRIVER_RESOURCE_TYPES_PREFIX + "gpu", "122m")
+      .set(YARN_AM_RESOURCE_TYPES_PREFIX + "some_resource_with_units_1", "121m")
+      .set(YARN_DRIVER_RESOURCE_TYPES_PREFIX + "some_resource_with_units_1", "122m")
       .set(YARN_AM_RESOURCE_TYPES_PREFIX + "fpga", "222m")
       .set(YARN_DRIVER_RESOURCE_TYPES_PREFIX + "fpga", "223m")
       .set(YARN_AM_RESOURCE_TYPES_PREFIX + "memory", "1G")
@@ -253,7 +253,8 @@ class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
 
     appContext.getAMContainerSpec should be (containerLaunchContext)
     appContext.getApplicationType should be ("SPARK")
-    TestYarnResourceTypeHelper.getResourceTypeValue(appContext.getResource, "gpu") should be (121)
+    TestYarnResourceTypeHelper.getResourceTypeValue(appContext.getResource,
+      "some_resource_with_units_1") should be (121)
     TestYarnResourceTypeHelper.getResourceTypeValue(appContext.getResource, "fpga") should be (222)
   }
 
@@ -262,8 +263,8 @@ class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
     TestYarnResourceTypeHelper.initializeResourceTypes(List("gpu", "fpga"))
 
     val sparkConf = new SparkConf()
-      .set(YARN_AM_RESOURCE_TYPES_PREFIX + "gpu", "121m")
-      .set(YARN_DRIVER_RESOURCE_TYPES_PREFIX + "gpu", "122m")
+      .set(YARN_AM_RESOURCE_TYPES_PREFIX + "some_resource_with_units_1", "121m")
+      .set(YARN_DRIVER_RESOURCE_TYPES_PREFIX + "some_resource_with_units_1", "122m")
       .set(YARN_AM_RESOURCE_TYPES_PREFIX + "fpga", "222m")
       .set(YARN_DRIVER_RESOURCE_TYPES_PREFIX + "fpga", "223m")
       .set(YARN_AM_RESOURCE_TYPES_PREFIX + "memory", "1G")
@@ -282,7 +283,8 @@ class ClientSuite extends SparkFunSuite with Matchers with BeforeAndAfterAll {
 
     appContext.getAMContainerSpec should be (containerLaunchContext)
     appContext.getApplicationType should be ("SPARK")
-    TestYarnResourceTypeHelper.getResourceTypeValue(appContext.getResource, "gpu") should be (122)
+    TestYarnResourceTypeHelper.getResourceTypeValue(appContext.getResource,
+      "some_resource_with_units_1") should be (122)
     TestYarnResourceTypeHelper.getResourceTypeValue(appContext.getResource, "fpga") should be (223)
   }
 

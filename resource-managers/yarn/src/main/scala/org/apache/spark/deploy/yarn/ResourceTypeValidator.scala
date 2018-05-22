@@ -41,7 +41,7 @@ private[spark] object ResourceType extends Enumeration {
   val cores, memory = Value
 }
 
-private[spark] object ResourceTypeValidator {
+private object ResourceTypeValidator {
   private val ERROR_PREFIX: String = "Error: "
   private val POSSIBLE_RESOURCE_DEFINITIONS = Seq[ResourceConfigProperties](
     new ResourceConfigProperties(am, client, memory),
