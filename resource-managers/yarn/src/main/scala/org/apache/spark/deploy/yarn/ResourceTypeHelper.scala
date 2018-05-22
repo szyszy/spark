@@ -114,7 +114,7 @@ private object ResourceTypeHelper extends Logging {
     }
     res
   }
-  
+
   private def createResourceInformation(
       resourceName: String,
       amount: Long,
