@@ -20,6 +20,7 @@ package org.apache.spark.deploy.yarn
 import java.lang.{Integer => JInteger, Long => JLong}
 import java.lang.reflect.InvocationTargetException
 
+import scala.collection.mutable
 import scala.util.control.NonFatal
 
 import org.apache.hadoop.yarn.api.records.Resource
@@ -33,42 +34,43 @@ import org.apache.spark.util.Utils
  */
 private object ResourceTypeHelper extends Logging {
   private val AMOUNT_AND_UNIT_REGEX = "([0-9]+)([A-Za-z]*)".r
+  private val RESOURCE_TYPES_NOT_AVAILABLE_ERROR_MESSAGE =
+    "Ignoring updating resource with resource types because " +
+        "the version of YARN does not support it!"
 
   def setResourceInfoFromResourceTypes(
       resourceTypes: Map[String, String],
       resource: Resource): Resource = {
     require(resource != null, "Resource parameter should not be null!")
 
-    if (!ResourceTypeHelper.isYarnResourceTypesAvailable()) {
+    if (!ResourceTypeHelper.isYarnResourceTypesAvailable() && !resourceTypes.isEmpty()) {
+      logWarning(RESOURCE_TYPES_NOT_AVAILABLE_ERROR_MESSAGE)
       return resource
     }
 
     logDebug(s"Custom resource types: $resourceTypes")
+    val resInfoClass = Utils.classForName(
+      "org.apache.hadoop.yarn.api.records.ResourceInformation")
+    val setResourceInformationMethod =
+      resource.getClass.getMethod("setResourceInformation", classOf[String],
+        resInfoClass)
     resourceTypes.foreach { case (name, rawAmount) =>
       try {
         val AMOUNT_AND_UNIT_REGEX(amountPart, unitPart) = rawAmount
-        val (amount, unit) = (amountPart.toLong, unitPart match {
-          case "m" => "M"
+        val amount = amountPart.toLong
+        val unit = unitPart match {
           case "g" => "G"
           case "t" => "T"
           case "p" => "P"
           case _ => unitPart
-        })
+        }
         logDebug(s"Registering resource with name: $name, amount: $amount, unit: $unit")
-
-        val resInfoClass = Utils.classForName(
-          "org.apache.hadoop.yarn.api.records.ResourceInformation")
-        val setResourceInformationMethod =
-          resource.getClass.getMethod("setResourceInformation", classOf[String],
-            resInfoClass)
-
         val resourceInformation =
           createResourceInformation(name, amount, unit, resInfoClass)
         setResourceInformationMethod.invoke(resource, name, resourceInformation)
       } catch {
         case _: MatchError => throw new IllegalArgumentException(
-          s"Value of resource type should match pattern $AMOUNT_AND_UNIT_REGEX, " +
-              s"unmatched value: $rawAmount")
+          s"Resource request for '$name' ('$rawAmount') does not match pattern $AMOUNT_AND_UNIT_REGEX.")
         case e: InvocationTargetException =>
           if (e.getCause != null) {
             throw e.getCause
@@ -80,46 +82,11 @@ private object ResourceTypeHelper extends Logging {
     resource
   }
 
-  def getCustomResourcesAsStrings(resource: Resource): String = {
-    if (resource == null) {
-      throw new IllegalArgumentException("Resource parameter should not be null!")
-    }
-
-    if (!ResourceTypeHelper.isYarnResourceTypesAvailable()) {
-      return ""
-    }
-
-    var res: String = ""
-    try {
-      val resUtilsClass = Utils.classForName(
-        "org.apache.hadoop.yarn.util.resource.ResourceUtils")
-      val getNumberOfResourceTypesMethod = resUtilsClass.getMethod("getNumberOfKnownResourceTypes")
-      val numberOfResourceTypes: Int = getNumberOfResourceTypesMethod.invoke(null).asInstanceOf[Int]
-      val resourceClass = Utils.classForName(
-        "org.apache.hadoop.yarn.api.records.Resource")
-
-      // skip memory and vcores (index 0 and 1)
-      for (i <- 2 until numberOfResourceTypes) {
-        val getResourceInfoMethod = resourceClass.getMethod("getResourceInformation", JInteger.TYPE)
-        res ++= getResourceInfoMethod.invoke(resource, i.asInstanceOf[JInteger]).toString()
-        res ++= ", "
-      }
-    } catch {
-      case e: InvocationTargetException =>
-        if (e.getCause != null) {
-          throw e.getCause
-        } else {
-          throw e
-        }
-    }
-    res
-  }
-
   private def createResourceInformation(
       resourceName: String,
       amount: Long,
       unit: String,
-      resInfoClass: Class[_]) = {
+      resInfoClass: Class[_]): Any = {
     val resourceInformation =
       if (unit.nonEmpty) {
         val resInfoNewInstanceMethod = resInfoClass.getMethod("newInstance",
@@ -135,8 +102,8 @@ private object ResourceTypeHelper extends Logging {
 
   /**
    * Checks whether Hadoop 2.x or 3 is used as a dependency.
-   * In case of Hadoop 3 and later,
-   * the ResourceInformation class should be available on the classpath.
+   * In case of Hadoop 3 and later, the ResourceInformation class
+   * should be available on the classpath.
    */
   def isYarnResourceTypesAvailable(): Boolean = {
     try {

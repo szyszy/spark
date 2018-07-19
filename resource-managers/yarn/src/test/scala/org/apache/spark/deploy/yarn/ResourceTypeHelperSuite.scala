@@ -33,9 +33,8 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAnd
     super.beforeAll()
   }
 
-  private def getExpectedUnmatchedErrorMessage(value: String) = {
-    "Value of resource type should match pattern " +
-      s"([0-9]+)([A-Za-z]*), unmatched value: $value"
+  private def getExpectedUnmatchedErrorMessage(name: String, value: String): String = {
+    s"Resource request for '$name' ('$value') does not match pattern ([0-9]+)([A-Za-z]*)."
   }
 
   test("resource type value does not match pattern") {
@@ -47,7 +46,7 @@ class ResourceTypeHelperSuite extends SparkFunSuite with Matchers with BeforeAnd
     val thrown = intercept[IllegalArgumentException] {
       ResourceTypeHelper.setResourceInfoFromResourceTypes(resourceTypes, createAResource)
     }
-    thrown.getMessage should equal (getExpectedUnmatchedErrorMessage("**@#"))
+    thrown.getMessage should equal (getExpectedUnmatchedErrorMessage(CUSTOM_RES_1, "**@#"))
   }
 
   test("resource type just unit defined") {

@@ -20,36 +20,36 @@ package org.apache.spark.deploy.yarn
 import scala.collection.mutable
 
 import org.apache.spark.{SparkConf, SparkException}
-import org.apache.spark.deploy.yarn.ProcessType.{am, driver, executor, ProcessType}
-import org.apache.spark.deploy.yarn.ResourceType.{cores, memory, ResourceType}
-import org.apache.spark.deploy.yarn.RunMode.{client, cluster, RunMode}
+import org.apache.spark.deploy.yarn.ProcessType.{AM, DRIVER, EXECUTOR, ProcessType}
+import org.apache.spark.deploy.yarn.ResourceType.{CORES, MEMORY, ResourceType}
+import org.apache.spark.deploy.yarn.RunMode.{CLIENT, CLUSTER, RunMode}
 import org.apache.spark.deploy.yarn.config._
 import org.apache.spark.internal.config._
 
-private[spark] object ProcessType extends Enumeration {
+private object ProcessType extends Enumeration {
   type ProcessType = Value
-  val driver, executor, am = Value
+  val DRIVER, EXECUTOR, AM = Value
 }
 
-private[spark] object RunMode extends Enumeration {
+private object RunMode extends Enumeration {
   type RunMode = Value
-  val client, cluster = Value
+  val CLIENT, CLUSTER = Value
 }
 
-private[spark] object ResourceType extends Enumeration {
+private object ResourceType extends Enumeration {
   type ResourceType = Value
-  val cores, memory = Value
+  val CORES, MEMORY = Value
 }
 
 private object ResourceTypeValidator {
   private val ERROR_PREFIX: String = "Error: "
   private val POSSIBLE_RESOURCE_DEFINITIONS = Seq[ResourceConfigProperties](
-    new ResourceConfigProperties(am, client, memory),
-    new ResourceConfigProperties(am, client, cores),
-    new ResourceConfigProperties(driver, cluster, memory),
-    new ResourceConfigProperties(driver, cluster, cores),
-    new ResourceConfigProperties(processType = executor, resourceType = memory),
-    new ResourceConfigProperties(processType = executor, resourceType = cores))
+    new ResourceConfigProperties(AM, CLIENT, MEMORY),
+    new ResourceConfigProperties(AM, CLIENT, CORES),
+    new ResourceConfigProperties(DRIVER, CLUSTER, MEMORY),
+    new ResourceConfigProperties(DRIVER, CLUSTER, CORES),
+    new ResourceConfigProperties(EXECUTOR, None, MEMORY),
+    new ResourceConfigProperties(EXECUTOR, None, CORES))
 
   /**
    * Validates sparkConf and throws a SparkException if a standard resource (memory or cores)
@@ -103,14 +103,14 @@ private object ResourceTypeValidator {
    */
   private def getCustomResourceValue(
       requestedResources: RequestedResources,
-      rcp: ResourceConfigProperties) = {
+      rcp: ResourceConfigProperties):Map[String, String] = {
     var customResources: Map[String, String] = null
     (rcp.processType, rcp.runMode, rcp.resourceType) match {
-      case (ProcessType.executor, _, _) => customResources =
+      case (ProcessType.EXECUTOR, _, _) => customResources =
           requestedResources.customExecutorResources
-      case (ProcessType.am, RunMode.client, _) => customResources =
+      case (ProcessType.AM, RunMode.CLIENT, _) => customResources =
           requestedResources.customAMResources
-      case (ProcessType.driver, RunMode.cluster, _) => customResources =
+      case (ProcessType.DRIVER, RunMode.CLUSTER, _) => customResources =
           requestedResources.customDriverResources
     }
     customResources
@@ -125,7 +125,7 @@ private object ResourceTypeValidator {
    * @return
    */
   private def getResourceConfigKeys(rcp: ResourceConfigProperties): (String, String) = {
-    val standardResourceConfigKey: String = if (rcp.processType == ProcessType.am) {
+    val standardResourceConfigKey: String = if (rcp.processType == ProcessType.AM) {
       s"spark.yarn.${rcp.processType}.${rcp.resourceType}"
     } else {
       s"spark.${rcp.processType}.${rcp.resourceType}"
@@ -133,11 +133,11 @@ private object ResourceTypeValidator {
 
     var customResourceTypeConfigKey: String = ""
     (rcp.processType, rcp.runMode) match {
-      case (ProcessType.am, RunMode.client) =>
+      case (ProcessType.AM, RunMode.CLIENT) =>
         customResourceTypeConfigKey += YARN_AM_RESOURCE_TYPES_PREFIX
-      case (ProcessType.driver, RunMode.cluster) =>
+      case (ProcessType.DRIVER, RunMode.CLUSTER) =>
         customResourceTypeConfigKey += YARN_DRIVER_RESOURCE_TYPES_PREFIX
-      case (ProcessType.executor, _) =>
+      case (ProcessType.EXECUTOR, _) =>
         customResourceTypeConfigKey += YARN_EXECUTOR_RESOURCE_TYPES_PREFIX
     }
 
@@ -146,13 +146,13 @@ private object ResourceTypeValidator {
     (standardResourceConfigKey, customResourceTypeConfigKey)
   }
 
-  private[spark] def printErrorMessageToBuffer(sb: StringBuilder, str: String): Unit = {
+  private def printErrorMessageToBuffer(sb: StringBuilder, str: String): Unit = {
     sb.append(s"$ERROR_PREFIX$str\n")
   }
 
   private class ResourceConfigProperties(
       val processType: ProcessType,
-      val runMode: RunMode = null,
+      val runMode: Option[RunMode],
       val resourceType: ResourceType)
 
   /**

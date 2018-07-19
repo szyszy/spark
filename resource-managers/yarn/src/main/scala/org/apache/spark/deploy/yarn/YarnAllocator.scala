@@ -139,7 +139,7 @@ private[yarn] class YarnAllocator(
   private val executorResourceTypes: collection.immutable.Map[String, String] =
     sparkConf.getAllWithPrefix(config.YARN_EXECUTOR_RESOURCE_TYPES_PREFIX).toMap
 
-  // Resource capability requested for each executors
+  // Resource capability requested for each executor
   private[yarn] val resource: Resource = createResourceCapability
 
   private val launcherPool = ThreadUtils.newDaemonCachedThreadPool(
@@ -289,10 +289,9 @@ private[yarn] class YarnAllocator(
     if (missing > 0) {
       var requestContainerMessage = s"Will request $missing executor container(s), each with " +
           s"${resource.getVirtualCores} core(s) and " +
-          s"${resource.getMemory} MB memory (including $memoryOverhead MB of overhead) "
+          s"${resource.getMemory} MB memory (including $memoryOverhead MB of overhead)"
       if (ResourceTypeHelper.isYarnResourceTypesAvailable()) {
-        requestContainerMessage ++= s"and with custom resources:" +
-            ResourceTypeHelper.getCustomResourcesAsStrings(resource)
+        requestContainerMessage ++= s" with custom resources: " + resource.toString
       }
       logInfo(requestContainerMessage)
 
@@ -462,10 +461,8 @@ private[yarn] class YarnAllocator(
     val matchingResource = Resource.newInstance(allocatedContainer.getResource.getMemory,
       resource.getVirtualCores)
 
-    if (ResourceTypeHelper.isYarnResourceTypesAvailable()) {
-      ResourceTypeHelper
+    ResourceTypeHelper
           .setResourceInfoFromResourceTypes(executorResourceTypes, matchingResource)
-    }
 
     logDebug(s"Calling amClient.getMatchingRequests with parameters: " +
         s"priority: ${allocatedContainer.getPriority}, " +
